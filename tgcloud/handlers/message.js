@@ -17,6 +17,17 @@ export default async function (message, ctx) {
 
   const user = await getOrCreateUser(userId, username);
 
+  // Handle forwarded messages to get channel ID
+  if (message.forward_from_chat) {
+    const forwardedChatId = message.forward_from_chat.id;
+    const forwardedChatTitle = message.forward_from_chat.title || message.forward_from_chat.username;
+    await api.sendMessage({
+      chat_id: chatId,
+      text: `📋 ID канала/чата "${forwardedChatTitle}": ${forwardedChatId}`,
+    });
+    return;
+  }
+
   if (text?.startsWith('/')) {
     await handleCommand(text, chatId, user, message);
   } else {
@@ -33,15 +44,16 @@ async function handleCommand(command, chatId, user, message) {
     case '/start':
       await api.sendMessage({
         chat_id: chatId,
-        text: `👋 Привет! Я Devin Tips Bot - бот о Devin AI!\n\n` +
-          `Я помогу тебе узнать о возможностях Devin, покажу примеры кода и отвечу на вопросы.\n\n` +
-          `📚 Команды:\n` +
-          `/help - Показать справку\n` +
-          `/posts - Показать последние посты\n` +
-          `/code [name] - Показать код бота\n` +
-          `/listcode - Список всех модулей\n` +
-          `/ask <вопрос> - Задать вопрос\n` +
-          `/get_channel_id @username - Получить ID канала\n` +
+        text: '👋 Привет! Я Devin Tips Bot - бот о Devin AI!\n\n' +
+          'Я помогу тебе узнать о возможностях Devin, покажу примеры кода и отвечу на вопросы.\n\n' +
+          '📚 Команды:\n' +
+          '/help - Показать справку\n' +
+          '/posts - Показать последние посты\n' +
+          '/code [name] - Показать код бота\n' +
+          '/listcode - Список всех модулей\n' +
+          '/ask <вопрос> - Задать вопрос\n' +
+          '/get_channel_id @username - Получить ID канала\n' +
+          '/my_channels - Справка по каналам\n' +
           `\n${isAdmin(user) ? '🔧 Админ-команды:\n/changelog <категория>: <изменения> - Добавить запись в changelog\n/publish_changelog <channel_id> - Опубликовать changelog\n/channel_config <key> <value> - Настройка канала\n/boost_request <level> - Запрос бустов\n/reaction_trigger <post_id> <count> <action> - Создать триггер реакций\n/set_openai_key <key> - Установить OpenAI API ключ\n/ai_summary - Сгенерировать AI summary' : ''}`,
       });
       break;
@@ -49,19 +61,19 @@ async function handleCommand(command, chatId, user, message) {
     case '/help':
       await api.sendMessage({
         chat_id: chatId,
-        text: `📖 Справка по Devin Tips Bot\n\n` +
-          `📚 Команды:\n` +
-          `/start - Начать работу\n` +
-          `/help - Эта справка\n` +
-          `/posts - Показать последние посты\n` +
-          `/code [name] - Показать код бота\n` +
-          `/listcode - Список всех модулей\n` +
-          `/ask <вопрос> - Задать вопрос о Devin\n\n` +
-          `Типы постов:\n` +
-          `• educational - Образовательные материалы\n` +
-          `• code_example - Примеры кода\n` +
-          `• qa - Вопросы и ответы\n` +
-          `• auto - Автоматический контент`,
+        text: '📖 Справка по Devin Tips Bot\n\n' +
+          '📚 Команды:\n' +
+          '/start - Начать работу\n' +
+          '/help - Эта справка\n' +
+          '/posts - Показать последние посты\n' +
+          '/code [name] - Показать код бота\n' +
+          '/listcode - Список всех модулей\n' +
+          '/ask <вопрос> - Задать вопрос о Devin\n\n' +
+          'Типы постов:\n' +
+          '• educational - Образовательные материалы\n' +
+          '• code_example - Примеры кода\n' +
+          '• qa - Вопросы и ответы\n' +
+          '• auto - Автоматический контент',
       });
       break;
 
@@ -226,7 +238,19 @@ async function handleCommand(command, chatId, user, message) {
         const channel = await api.getChat({ chat_id: args });
         await api.sendMessage({ chat_id, text: `📋 ID канала ${args}: ${channel.id}` });
       } catch (e) {
-        await api.sendMessage({ chat_id, text: '❌ Не удалось получить ID канала. Убедись, что бот добавлен в канал.' });
+        console.error('getChat error:', e);
+        let errorMsg = '❌ Не удалось получить ID канала.\n\n';
+        if (e.code === 400) {
+          errorMsg += 'Возможные причины:\n';
+          errorMsg += '• Бот не добавлен в канал\n';
+          errorMsg += '• Канал приватный (нет username)\n';
+          errorMsg += '• Неверный username';
+        } else if (e.code === 403) {
+          errorMsg += 'Бот заблокирован или нет прав доступа';
+        } else {
+          errorMsg += `Ошибка: ${e.description || e.message}`;
+        }
+        await api.sendMessage({ chat_id, text: errorMsg });
       }
       break;
 
@@ -253,6 +277,34 @@ async function handleCommand(command, chatId, user, message) {
         await api.sendMessage({ chat_id, text: '❌ Нет изменений за сегодня или API ключ не настроен' });
       } else {
         await api.sendMessage({ chat_id, text: `🤖 AI Summary:\n\n${summary}` });
+      }
+      break;
+
+    case '/my_channels':
+      if (!isAdmin(user)) {
+        await api.sendMessage({ chat_id, text: '❌ Только для админов' });
+        return;
+      }
+      try {
+        const me = await api.getMe();
+        await api.sendMessage({
+          chat_id: chatId,
+          text: `ℹ️ Бот @${me.username} должен быть добавлен в канал как админ.\n\nПосле добавления просто перешли любое сообщение из канала боту - он покажет ID.`,
+        });
+      } catch (e) {
+        await api.sendMessage({ chat_id, text: '❌ Ошибка' });
+      }
+      break;
+
+    case '/status':
+      try {
+        const me = await api.getMe();
+        await api.sendMessage({
+          chat_id: chatId,
+          text: `✅ Бот работает!\n\n🤖 Бот: @${me.username}\n👤 Твоя роль: ${user.role}\n\nЕсли команды не работают, проверь:\n• Бот добавлен в канал как админ\n• Канал публичный (@username)`,
+        });
+      } catch (e) {
+        await api.sendMessage({ chat_id, text: '❌ Ошибка проверки статуса' });
       }
       break;
 

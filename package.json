@@ -2,11 +2,14 @@
   "name": "vibebot",
   "private": true,
   "devDependencies": {
-    "@tgcloud/cli": "^0.2.0"
+    "@tgcloud/cli": "^0.2.0",
+    "eslint": "^8.57.1"
   },
   "scripts": {
     "deploy": "tgcloud push",
     "status": "tgcloud status",
-    "run": "tgcloud run"
+    "run": "tgcloud run",
+    "lint": "eslint tgcloud/**/*.js",
+    "lint:fix": "eslint tgcloud/**/*.js --fix"
   }
 }

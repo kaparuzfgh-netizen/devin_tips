@@ -1,0 +1,93 @@
+name: Auto Changelog
+
+on:
+  schedule:
+    # Runs daily at 18:00 UTC
+    - cron: '0 18 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  auto-changelog:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Generate random delay (0-90 minutes)
+        id: delay
+        run: |
+          DELAY=$((RANDOM % 5400))
+          echo "delay_seconds=$DELAY" >> $GITHUB_OUTPUT
+          echo "Waiting for $DELAY seconds ($(($DELAY / 60)) minutes)"
+      
+      - name: Wait random time
+        run: |
+          sleep ${{ steps.delay.outputs.delay_seconds }}
+      
+      - name: Get commits from last 24 hours
+        id: commits
+        run: |
+          # Get commits from last 24 hours
+          COMMITS=$(git log --since="24 hours ago" --pretty=format:"- %s" || echo "")
+          
+          if [ -z "$COMMITS" ]; then
+            echo "No commits in last 24 hours"
+            echo "has_commits=false" >> $GITHUB_OUTPUT
+          else
+            echo "$COMMITS"
+            echo "has_commits=true" >> $GITHUB_OUTPUT
+            echo "commits<<EOF" >> $GITHUB_OUTPUT
+            echo "$COMMITS" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Generate changelog with OpenAI
+        if: steps.commits.outputs.has_commits == 'true'
+        id: changelog
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          COMMITS="${{ steps.commits.outputs.commits }}"
+          
+          RESPONSE=$(curl -s https://api.openai.com/v1/chat/completions \
+            -H "Authorization: Bearer $OPENAI_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "model": "openai/gpt-oss-120b",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "Ты Вайбкот - дружелюбный бот о Devin AI. Генерируй changelog из коммитов. Добавь свои комментарии с характером. Используй эмодзи категории: ✨ Features, 🐛 Fixes, ♻️ Improvements, 📝 Documentation. Формат: краткий, дружелюбный, с пояснениями."
+                },
+                {
+                  "role": "user",
+                  "content": "Сгенерируй changelog из этих коммитов:\n\n'"$COMMITS"'"
+                }
+              ],
+              "max_tokens": 1000
+            }')
+          
+          CHANGELOG=$(echo $RESPONSE | jq -r '.choices[0].message.content')
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      
+      - name: Publish to Telegram
+        if: steps.commits.outputs.has_commits == 'true'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
+        run: |
+          CHANGELOG="${{ steps.changelog.outputs.changelog }}"
+          
+          curl -s "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+            -d "chat_id=$CHANNEL_ID" \
+            -d "text=📝 Changelog - $(date +'%Y-%m-%d') 🤖
+
+$CHANGELOG
+
+_Generated automatically by VibeBot via GitHub Actions_" \
+            -d "parse_mode=Markdown"
