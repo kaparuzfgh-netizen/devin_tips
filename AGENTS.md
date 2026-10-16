@@ -7,14 +7,56 @@ and true. For the full SDK reference (db, Bot API, fetch), see
 
 ## What this project is
 
-A **Telegram Mini App bot** running on Telegram's serverless platform. You write
-JavaScript modules (database schema, shared library code, update handlers); the
-platform runs them in a V8 isolate. The `tgcloud` CLI syncs this local project
-with the bot's cloud environment — think `wrangler`/`vercel` + `drizzle-kit`.
+**Devin Tips Bot** - Telegram bot about Devin AI that runs on Telegram's serverless platform.
+The bot publishes educational content about Devin, shows its own code, answers questions, and demonstrates serverless bot capabilities in the "Devin Tip's" channel.
 
-There is no server to run locally and no `node_modules` to import from at runtime:
-the only things available inside a module are the platform SDK and other modules
-in this project.
+**Key features:**
+- Educational posts about Devin AI capabilities
+- Code examples (shows bot's own code)
+- Q&A with users
+- Dialog mode for answering questions
+- Code viewing functionality
+- Event-based publishing
+- Flexible role-based permissions (admin/user)
+- Service message deletion in chats/channels
+- Channel boost level monitoring
+- Reaction counting on posts
+- Daily product changelog (not channel changelog)
+- GitHub integration for change tracking
+
+**Deployment:** Telegram Serverless (free, official Telegram infrastructure)
+**Language:** JavaScript (required by Serverless platform)
+**Database:** Built-in SQLite
+
+## Important Rules
+
+**DO NOT output code to the user.** When asked about implementation or capabilities:
+- Answer "yes/no" or "possible/not possible"
+- Explain HOW it would work conceptually
+- Do NOT show code snippets unless explicitly requested
+- Focus on architectural decisions and trade-offs
+
+**Documentation First:**
+- Always update TASK_TRACKER.md when implementing features
+- Update DOCUMENT_CANON.md for architectural changes
+- Update SYSTEM_MAP.md for structural changes
+- Keep README.md current with user-facing changes
+
+**Changelog Definition:**
+- Changelog is for PRODUCT changes, not channel changes
+- Format: Feature additions, bug fixes, improvements
+- Published as a post to @devin_tips channel
+- AI-assisted summarization planned
+
+**Goal:** Demonstrate vibecoding with Devin and Telegram Serverless capabilities in full scope, including workarounds for limitations.
+
+## Project Context
+
+- **Admin:** @kaparuz
+- **Channel:** @devin_tips
+- **Repository:** https://github.com/kaparuzfgh-netizen/devin_tips.git
+- **Platform:** Telegram Serverless
+- **Purpose:** Educational demonstration of vibecoding
 
 ## Layout
 
