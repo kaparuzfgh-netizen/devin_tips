@@ -8,6 +8,7 @@ import { getPublishedPosts, getCodeSnippet, listCodeSnippets } from '../lib/cont
 import { setChannelSetting, sendBoostRequest, getChannelInfo, createReactionTrigger } from '../lib/channel.js';
 import { addChangelogEntry, publishChangelog, generateDailySummary } from '../lib/changelog.js';
 import { setOpenaiApiKey } from '../lib/openai.js';
+import { sendRichMessage, formatId } from '../lib/message.js';
 
 export default async function (message, ctx) {
   const chatId = message.chat.id;
@@ -40,7 +41,10 @@ async function handleCommand(command, chatId, user, message) {
   const cmd = parts[0].toLowerCase();
   const args = parts.slice(1).join(' ');
 
-  switch (cmd) {
+  console.log(`[CMD] ${cmd} from user ${user.telegramId} (@${user.username})`);
+
+  try {
+    switch (cmd) {
     case '/start':
       await api.sendMessage({
         chat_id: chatId,
@@ -231,14 +235,16 @@ async function handleCommand(command, chatId, user, message) {
 
     case '/get_channel_id':
       if (!args) {
-        await api.sendMessage({ chat_id, text: '❌ Укажи @username канала. Пример: /get_channel_id @devin_tips' });
+        await sendRichMessage(chatId, '❌ Укажи @username канала. Пример: /get_channel_id @devin_tips');
         return;
       }
+      console.log(`[GET_CHANNEL_ID] Trying to get info for: ${args}`);
       try {
         const channel = await api.getChat({ chat_id: args });
-        await api.sendMessage({ chat_id, text: `📋 ID канала ${args}: ${channel.id}` });
+        console.log(`[GET_CHANNEL_ID] Success: ID=${channel.id}, type=${channel.type}`);
+        await sendRichMessage(chatId, `📋 ID канала ${args}: ${formatId(channel.id)}`);
       } catch (e) {
-        console.error('getChat error:', e);
+        console.error('[ERROR] getChat failed:', e);
         let errorMsg = '❌ Не удалось получить ID канала.\n\n';
         if (e.code === 400) {
           errorMsg += 'Возможные причины:\n';
@@ -250,7 +256,7 @@ async function handleCommand(command, chatId, user, message) {
         } else {
           errorMsg += `Ошибка: ${e.description || e.message}`;
         }
-        await api.sendMessage({ chat_id, text: errorMsg });
+        await sendRichMessage(chatId, errorMsg);
       }
       break;
 
@@ -309,10 +315,11 @@ async function handleCommand(command, chatId, user, message) {
       break;
 
     default:
-      await api.sendMessage({
-        chat_id: chatId,
-        text: '❓ Неизвестная команда. Используй /help для справки.',
-      });
+      await sendRichMessage(chatId, '❓ Неизвестная команда. Используй /help для справки.');
+  }
+  } catch (e) {
+    console.error(`[ERROR] Command ${cmd} failed:`, e);
+    await sendRichMessage(chatId, `❌ Ошибка выполнения команды: ${e.description || e.message || 'Неизвестная ошибка'}`);
   }
 }
 
