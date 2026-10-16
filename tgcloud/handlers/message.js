@@ -6,7 +6,8 @@ import { api } from 'sdk';
 import { getOrCreateUser, isAdmin } from '../lib/auth.js';
 import { getPublishedPosts, getCodeSnippet, listCodeSnippets } from '../lib/content.js';
 import { setChannelSetting, sendBoostRequest, getChannelInfo, createReactionTrigger } from '../lib/channel.js';
-import { addChangelogEntry, publishChangelog } from '../lib/changelog.js';
+import { addChangelogEntry, publishChangelog, generateDailySummary } from '../lib/changelog.js';
+import { setOpenaiApiKey } from '../lib/openai.js';
 
 export default async function (message, ctx) {
   const chatId = message.chat.id;
@@ -41,7 +42,7 @@ async function handleCommand(command, chatId, user, message) {
           `/listcode - Список всех модулей\n` +
           `/ask <вопрос> - Задать вопрос\n` +
           `/get_channel_id @username - Получить ID канала\n` +
-          `\n${isAdmin(user) ? '🔧 Админ-команды:\n/changelog <изменения> - Добавить запись в changelog\n/publish_changelog <channel_id> - Опубликовать changelog\n/channel_config <key> <value> - Настройка канала\n/boost_request <level> - Запрос бустов\n/reaction_trigger <post_id> <count> <action> - Создать триггер реакций' : ''}`,
+          `\n${isAdmin(user) ? '🔧 Админ-команды:\n/changelog <категория>: <изменения> - Добавить запись в changelog\n/publish_changelog <channel_id> - Опубликовать changelog\n/channel_config <key> <value> - Настройка канала\n/boost_request <level> - Запрос бустов\n/reaction_trigger <post_id> <count> <action> - Создать триггер реакций\n/set_openai_key <key> - Установить OpenAI API ключ\n/ai_summary - Сгенерировать AI summary' : ''}`,
       });
       break;
 
@@ -137,10 +138,22 @@ async function handleCommand(command, chatId, user, message) {
         return;
       }
       if (!args) {
-        await api.sendMessage({ chat_id, text: '❌ Укажи изменения. Пример: /changelog Добавлена функция X' });
+        await api.sendMessage({ chat_id, text: '❌ Укажи категорию и изменения. Пример: /changelog feature: Добавлена функция X\nКатегории: feature, fix, improvement, documentation' });
         return;
       }
-      await addChangelogEntry(args);
+      const parts = args.split(':');
+      if (parts.length < 2) {
+        await api.sendMessage({ chat_id, text: '❌ Неверный формат. Используй: /changelog <категория>: <изменения>' });
+        return;
+      }
+      const category = parts[0].trim().toLowerCase();
+      const changes = parts.slice(1).join(':').trim();
+      const validCategories = ['feature', 'fix', 'improvement', 'documentation'];
+      if (!validCategories.includes(category)) {
+        await api.sendMessage({ chat_id, text: `❌ Неверная категория. Доступно: ${validCategories.join(', ')}` });
+        return;
+      }
+      await addChangelogEntry(category, changes);
       await api.sendMessage({ chat_id, text: '✅ Запись добавлена в changelog' });
       break;
 
@@ -214,6 +227,32 @@ async function handleCommand(command, chatId, user, message) {
         await api.sendMessage({ chat_id, text: `📋 ID канала ${args}: ${channel.id}` });
       } catch (e) {
         await api.sendMessage({ chat_id, text: '❌ Не удалось получить ID канала. Убедись, что бот добавлен в канал.' });
+      }
+      break;
+
+    case '/set_openai_key':
+      if (!isAdmin(user)) {
+        await api.sendMessage({ chat_id, text: '❌ Только для админов' });
+        return;
+      }
+      if (!args) {
+        await api.sendMessage({ chat_id, text: '❌ Укажи API ключ. Пример: /set_openai_key gsk_...' });
+        return;
+      }
+      await setOpenaiApiKey(args);
+      await api.sendMessage({ chat_id, text: '✅ OpenAI API ключ сохранен' });
+      break;
+
+    case '/ai_summary':
+      if (!isAdmin(user)) {
+        await api.sendMessage({ chat_id, text: '❌ Только для админов' });
+        return;
+      }
+      const summary = await generateDailySummary();
+      if (!summary) {
+        await api.sendMessage({ chat_id, text: '❌ Нет изменений за сегодня или API ключ не настроен' });
+      } else {
+        await api.sendMessage({ chat_id, text: `🤖 AI Summary:\n\n${summary}` });
       }
       break;
 

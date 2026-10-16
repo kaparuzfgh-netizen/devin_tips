@@ -50,6 +50,7 @@ export const codeSnippets = table('code_snippets', {
 export const changelog = table('changelog', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   date: text('date').notNull(),
+  category: text('category').notNull(), // feature, fix, improvement, documentation
   changes: text('changes').notNull(),
   published: boolean('published').notNull().default(false),
   publishedAt: integer('published_at', { mode: 'timestamp' }),
@@ -75,5 +76,6 @@ export const channelSettings = table('channel_settings', {
   autoBoostRequest: boolean('auto_boost_request').notNull().default(false),
   targetBoostLevel: integer('target_boost_level'),
   changelogChannelId: integer('changelog_channel_id'),
+  openaiApiKey: text('openai_api_key'),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
 });
