@@ -1,88 +1,37 @@
-# Task Tracker - Devin Tips Bot
+# TASK_TRACKER
 
-## Completed ✅
+Статусы: `TODO` · `WRITTEN` (написано, не запускалось) · `VERIFIED` (запущено, критерий выполнен) ·
+`LIVE` (задеплоено и проверено в Telegram) · `BLOCKED`.
+Галочку ✅ ставим только для VERIFIED и LIVE. Нет доказательства — нет статуса выше WRITTEN.
 
-### Phase 1: Foundation
-- [x] Initialize Telegram Serverless project
-- [x] Set up database schema (users, posts, conversations, code_snippets)
-- [x] Implement basic handlers (message, callback_query)
-- [x] Create authentication system (admin/user roles)
-- [x] Implement content management (posts, code snippets)
-- [x] Deploy to Telegram Serverless
-- [x] Test basic functionality
+Исходное состояние ниже взято из отчёта предыдущего ИИ; проверенным считается только то, где указано доказательство.
 
-### Phase 2: Advanced Features
-- [x] Add channel management module
-- [x] Implement service message deletion
-- [x] Add boost level monitoring
-- [x] Implement reaction triggers
-- [x] Create changelog system
-- [x] Add GitHub integration module
-- [x] Update handlers with new features
-- [x] Deploy and test advanced features
+## MVP: changelog → канал @devin_tips
 
-### Phase 3: Project Formalization
-- [x] Initialize GitHub repository
-- [x] Create SYSTEM_MAP.md
-- [x] Set up git remote
+| ID | Задача | Критерий приёмки | Статус | Доказательство |
+|----|--------|------------------|--------|----------------|
+| T0 | Где хранятся секреты (OpenAI, GitHub) | В README/docs описано место хранения без значений; выбран способ | TODO | — |
+| T1 | Команды `/start`, `/help`, `/status` | Бот отвечает; `/status` показывает роль admin | LIVE | Скриншот владельца |
+| T2 | Привязка к каналу | После добавления бота админом в канал его ID сохранён (событие `my_chat_member`); команда показывает сохранённый ID | VERIFIED | `/get_channel_id` показывает сохранённый ID `-1003747058496`; handler `my_chat_member` работает |
+| T3 | `/changelog <текст>` | Запись попала в таблицу `changelog`, бот подтвердил | WRITTEN | — |
+| T4 | `/publish_changelog` | В канале появился пост с записями за день, текст совпадает с БД | WRITTEN | — (зависит от T2) |
+| T5 | GitHub Action → changelog | Коммит в `master` → запустился Action → запись появилась | WRITTEN | — |
+| T6 | AI summary | Саммари в пределах лимита; при сбое OpenAI пост уходит без саммари | WRITTEN | — (зависит от T0) |
 
-## In Progress 🔄
+## Backlog (не трогать без просьбы владельца)
+- Удаление сервисных сообщений в канале
+- Мониторинг и запрос бустов
+- Реакции-триггеры
+- Q&A (`/ask`), диалоговый режим
+- Показ собственного кода (`/code`, `/listcode`)
+- Mini App
 
-### Phase 4: Documentation
-- [x] Create DOCUMENT_CANON.md (Technical Specification)
-- [x] Update AGENTS.md with new rules
-- [x] Create README.md for GitHub
-- [ ] Document API endpoints
-- [ ] Create CONTRIBUTING.md
+## Долг по документации
+- [ ] Влить SYSTEM_MAP.md и DOCUMENT_CANON.md в раздел «Архитектура» README, затем удалить оба файла
+- [ ] README: исправить структуру проекта (`vibebot/` → `devin_tips/`), убрать «AI summary» из готового
+- [ ] Добавить LICENSE или убрать упоминание; убрать ссылку на несуществующий CONTRIBUTING.md
+- [ ] Заполнить описание и темы репозитория на GitHub
+- [ ] Проверить, что ESLint запускается (`npx eslint tgcloud`)
 
-### Phase 5: Changelog Refinement
-- [x] Redesign changelog as product changelog (not channel)
-- [x] Implement changelog post generation
-- [x] Add AI integration for changelog summaries
-- [x] Test changelog publication to channel
-
-## Planned 📋
-
-### Phase 6: AI Integration
-- [ ] Set up free AI service integration
-- [ ] Implement AI-powered content generation
-- [ ] Add AI for Q&A responses
-- [ ] AI-assisted changelog writing
-- [ ] AI code explanations
-
-### Phase 7: GitHub Integration
-- [ ] Configure GitHub token
-- [ ] Implement automatic changelog from git commits
-- [ ] Create GitHub releases from changelog
-- [ ] Add diff viewing capability
-- [ ] Auto-commit changes to GitHub
-
-### Phase 8: Channel Features
-- [ ] Implement automatic boost requests
-- [ ] Add channel design management
-- [ ] Create channel analytics
-- [ ] Add member management
-- [ ] Implement scheduled posts
-
-### Phase 9: Content System
-- [ ] Create admin interface for content management
-- [ ] Add content scheduling
-- [ ] Implement content categories
-- [ ] Add content templates
-- [ ] Create content approval workflow
-
-### Phase 10: Monitoring & Analytics
-- [ ] Add usage analytics
-- [ ] Implement error tracking
-- [ ] Create performance monitoring
-- [ ] Add user activity tracking
-- [ ] Generate weekly reports
-
-## Blocked 🚫
-- None currently
-
-## Notes
-- Priority: Documentation > Changelog Refinement > AI Integration
-- User: @kaparuz (admin)
-- Channel: @devin_tips
-- Repository: https://github.com/kaparuzfgh-netizen/devin_tips.git
+## Формат доказательства
+`команда → ключевая строка ответа` или `скриншот: что на нём видно` или `ссылка на запуск Action`.

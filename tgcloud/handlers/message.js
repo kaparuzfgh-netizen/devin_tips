@@ -3,12 +3,15 @@
 // payload (here, a Message). The full update is available as `ctx.update`.
 
 import { api } from 'sdk';
+import { db } from 'sdk';
+import { eq } from 'sdk/db';
 import { getOrCreateUser, isAdmin } from '../lib/auth.js';
 import { getPublishedPosts, getCodeSnippet, listCodeSnippets } from '../lib/content.js';
 import { setChannelSetting, sendBoostRequest, getChannelInfo, createReactionTrigger } from '../lib/channel.js';
 import { addChangelogEntry, publishChangelog, generateDailySummary } from '../lib/changelog.js';
 import { setOpenaiApiKey } from '../lib/openai.js';
 import { sendRichMessage, formatId } from '../lib/message.js';
+import { channelSettings } from '../schema.js';
 
 export default async function (message, ctx) {
   const chatId = message.chat.id;
@@ -234,30 +237,20 @@ async function handleCommand(command, chatId, user, message) {
       break;
 
     case '/get_channel_id':
-      if (!args) {
-        await sendRichMessage(chatId, '❌ Укажи @username канала. Пример: /get_channel_id @devin_tips');
+      // Show saved channel IDs from database
+      const savedChannels = await db.select().from(channelSettings).all();
+      
+      if (savedChannels.length === 0) {
+        await sendRichMessage(chatId, '❌ Каналы не найдены в базе данных.\n\nДобавь бота в канал как админа - он автоматически сохранит ID.');
         return;
       }
-      console.log(`[GET_CHANNEL_ID] Trying to get info for: ${args}`);
-      try {
-        const channel = await api.getChat({ chat_id: args });
-        console.log(`[GET_CHANNEL_ID] Success: ID=${channel.id}, type=${channel.type}`);
-        await sendRichMessage(chatId, `📋 ID канала ${args}: ${formatId(channel.id)}`);
-      } catch (e) {
-        console.error('[ERROR] getChat failed:', e);
-        let errorMsg = '❌ Не удалось получить ID канала.\n\n';
-        if (e.code === 400) {
-          errorMsg += 'Возможные причины:\n';
-          errorMsg += '• Бот не добавлен в канал\n';
-          errorMsg += '• Канал приватный (нет username)\n';
-          errorMsg += '• Неверный username';
-        } else if (e.code === 403) {
-          errorMsg += 'Бот заблокирован или нет прав доступа';
-        } else {
-          errorMsg += `Ошибка: ${e.description || e.message}`;
-        }
-        await sendRichMessage(chatId, errorMsg);
+      
+      let text = '📋 Сохранённые каналы:\n\n';
+      for (const channel of savedChannels) {
+        text += `• ${formatId(channel.channelId)}\n`;
       }
+      
+      await sendRichMessage(chatId, text);
       break;
 
     case '/set_openai_key':
