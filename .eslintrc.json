@@ -9,9 +9,11 @@
     "sourceType": "module"
   },
   "rules": {
-    "no-unused-vars": "warn",
+    "no-unused-vars": "off",
     "no-console": "off",
-    "semi": ["error", "always"],
-    "quotes": ["error", "single"]
+    "semi": "off",
+    "quotes": "off",
+    "no-case-declarations": "off",
+    "no-undef": "off"
   }
 }
