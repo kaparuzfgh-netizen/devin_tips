@@ -2,7 +2,8 @@ import { api } from 'sdk';
 import { db } from 'sdk';
 import { eq } from 'sdk/db';
 import { getOrCreateUser, isAdmin } from '../lib/auth.js';
-import { sendRichMessage, escapeMd } from '../lib/message.js';
+import { sendRichMessage } from '../lib/message.js';
+import { draftPost } from '../lib/format.js';
 import { dailyPosts, channelSettings } from '../schema.js';
 
 // runs on each `callback_query` update
@@ -102,7 +103,7 @@ export default async function (callback_query, ctx) {
         const draftText = callback_query.message.text;
         console.log(`[CALLBACK] When: publishing text (length=${draftText.length})`);
 
-        const result = await sendRichMessage(channelId, escapeMd(draftText));
+        const result = await sendRichMessage(channelId, draftPost(draftText, date));
         console.log(`[CALLBACK] Then: message sent to channel, id=${result.message_id}`);
 
         // Record in database

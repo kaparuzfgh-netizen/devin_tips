@@ -57,7 +57,7 @@ describe('handlers/callback_query.js pub flow', () => {
 
     const sent = apiCalls.find((c) => c.method === 'sendMessage');
     expect(sent.params.chat_id).toBe(-1003747058496);
-    expect(sent.params.text).toBe('DRAFT TEXT');
+    expect(sent.params.text).toContain('DRAFT TEXT');
 
     const ins = dbCalls.find((s) => s[0].op === 'insert' && s[0].table === 'daily_posts');
     expect(valuesOf(ins)).toMatchObject({ date: '2026-10-18', status: 'published', channelMessageId: 42 });
@@ -67,14 +67,14 @@ describe('handlers/callback_query.js pub flow', () => {
     expect(apiCalls.some((c) => c.method === 'editMessageText' && c.params.message_id === 7)).toBe(true);
   });
 
-  it('escapes Markdown chars in the published draft text', async () => {
+  it('escapes HTML chars in the published draft text', async () => {
     __pushDb(adminUser, [{ channelId: -100 }], null);
     const q = cbq('pub:2026-10-18');
-    q.message.text = 'draft a_b*c';
+    q.message.text = 'draft a<b&c';
     await handler(q, {});
     const sent = apiCalls.find((c) => c.method === 'sendMessage');
-    expect(sent.params.text).toBe('draft a\\_b\\*c');
-    expect(sent.params.parse_mode).toBe('Markdown');
+    expect(sent.params.text).toContain('draft a&lt;b&amp;c');
+    expect(sent.params.parse_mode).toBe('HTML');
   });
 
   it('reports an API failure to the admin', async () => {
