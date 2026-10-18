@@ -74,6 +74,16 @@ ESLint правило `no-undef` было отключено в `.eslintrc.json`
 (БД бота) — противоречит правилу «секреты только в GitHub Secrets».
 Также `setOpenaiApiKey` при пустой таблице вставляет строку с `channelId: 1` (B2).
 
+## KI-005: Миграция на sendRichMessage (WRITTEN, не проверено в живом Telegram)
+
+**Статус:** WRITTEN — тесты зелёные, живой проверки в Telegram ещё не было.
+Весь код `tgcloud/` теперь шлёт через `sendRichMessage` (Markdown) с `escapeMd()` для
+динамического текста и повтором обычным текстом при 400 «parse entities».
+Затронуты Frozen `lib/message.js` и Core-хендлеры — по прямому решению владельца.
+Для VERIFIED: в Telegram пройти `/start`, `/status`, `/code`, `/changelog`, кнопки `pub:`/`rej:`
+и убедиться, что сообщения со спецсимволами (`_`, `*`) доходят.
+Остался за границей миграции: `scripts/daily-changelog.js` (нативный fetch, без parse_mode).
+
 ## KI-004: Прочие находки аудита (не исправлены)
 
 - **B3** `lib/content.js getPublishedPosts(type)`: второй `.where()` может отбрасываться

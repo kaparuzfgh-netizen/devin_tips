@@ -16,7 +16,7 @@ GitHub Actions cron 07:00 UTC (.github/workflows/daily-changelog.yml)
       → GitHub API: коммиты за сутки → фильтр (merge/docs:/chore:/[skip changelog])
       → Telegram Bot API: черновик админу с кнопками pub:/rej:
   → handlers/callback_query.js          [Core]
-      → pub: api.sendMessage в канал + insert daily_posts(status='published')
+      → pub: sendRichMessage в канал + insert daily_posts(status='published')
       → rej: insert daily_posts(status='rejected')
 ```
 Запасной текст — простой список коммитов. Groq-вызова в скрипте пока нет (T5=TODO),
@@ -58,7 +58,7 @@ update message_reaction_count → handlers/message_reaction_count.js → lib/cha
 | `lib/channel.js` | Настройки канала, удаление сервисных, бусты, триггеры реакций | — (KI-004/B7,B11) | schema, api |
 | `lib/changelog.js` | Старая схема changelog (команды ЗАМЕНЕНО, код не удалять) + generateDailySummary | — | schema, api, openai |
 | `lib/content.js` | CRUD постов и сниппетов кода | — (KI-004/B3) | schema |
-| `lib/message.js` | sendRichMessage, formatId, formatCode — единый parse_mode Markdown | Frozen | api |
+| `lib/message.js` | sendRichMessage (+ повтор plain при 400 parse entities), escapeMd, formatId, formatCode — единый parse_mode Markdown | Frozen (изменён по решению владельца, KI-005) | api |
 | `lib/openai.js` | AI-summary через OpenAI-совместимый endpoint | — (KI-003) | schema, fetch |
 | `lib/github.js` | GitHub API (commits/releases/diff) | мёртвый код | fetch |
 | `lib/self.js` | Статичные сниппеты кода бота | мёртвый код | content |
