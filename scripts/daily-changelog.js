@@ -134,8 +134,8 @@ function generateChangelog(commits, date, isTest) {
   return text;
 }
 
-// Send message to Telegram
-async function sendTelegramMessage(text) {
+// Send message with inline keyboard (single message with buttons)
+async function sendTelegramDraft(date, text) {
   const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
 
   const response = await fetch(url, {
@@ -146,34 +146,10 @@ async function sendTelegramMessage(text) {
     body: JSON.stringify({
       chat_id: ADMIN_CHAT_ID,
       text: text,
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`Telegram API error: ${error.code} - ${error.description}`);
-  }
-
-  const result = await response.json();
-  return result.result.message_id;
-}
-
-// Send message with inline keyboard
-async function sendTelegramButtons(date, draftMessageId) {
-  const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      chat_id: ADMIN_CHAT_ID,
-      text: 'Опубликовать этот changelog?',
       reply_markup: {
         inline_keyboard: [
           [
-            { text: '✅ Опубликовать', callback_data: `pub:${date}:${draftMessageId}` },
+            { text: '✅ Опубликовать', callback_data: `pub:${date}` },
             { text: '❌ Отклонить', callback_data: `rej:${date}` },
           ],
         ],
@@ -214,13 +190,9 @@ async function main() {
       return;
     }
 
-    console.log('Sending draft to admin...');
-    const draftMessageId = await sendTelegramMessage(changelog);
-    console.log('Draft sent, message_id:', draftMessageId);
-
-    console.log('Sending buttons...');
-    await sendTelegramButtons(dateStr, draftMessageId);
-    console.log('Buttons sent, ok');
+    console.log('Sending draft with buttons to admin...');
+    await sendTelegramDraft(dateStr, changelog);
+    console.log('Draft sent, ok');
   } catch (error) {
     console.error('Error:', error.message);
     process.exit(1);
