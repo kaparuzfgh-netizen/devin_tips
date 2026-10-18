@@ -7,7 +7,9 @@
   "devDependencies": {
     "@tgcloud/cli": "^0.2.0",
     "@types/node": "^24.19.2",
+    "@vitest/coverage-v8": "^5.0.3",
     "eslint": "^8.57.1",
+    "simple-git-hooks": "^2.14.0",
     "typescript": "^5.9.3",
     "vitest": "^5.0.3"
   },
@@ -19,6 +21,12 @@
     "lint:fix": "eslint \"tgcloud/**/*.js\" \"scripts/**/*.js\" \"test/**/*.js\" --fix --max-warnings 0",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "check": "npm run lint && npm run typecheck && npm run test"
+    "test:coverage": "vitest run --coverage",
+    "baseline": "node test/check-baseline.mjs",
+    "check": "npm run lint && npm run typecheck && npm run test && npm run baseline",
+    "prepare": "simple-git-hooks"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "npm run check --silent"
   }
 }
