@@ -67,6 +67,16 @@ describe('handlers/callback_query.js pub flow', () => {
     expect(apiCalls.some((c) => c.method === 'editMessageText' && c.params.message_id === 7)).toBe(true);
   });
 
+  it('escapes Markdown chars in the published draft text', async () => {
+    __pushDb(adminUser, [{ channelId: -100 }], null);
+    const q = cbq('pub:2026-10-18');
+    q.message.text = 'draft a_b*c';
+    await handler(q, {});
+    const sent = apiCalls.find((c) => c.method === 'sendMessage');
+    expect(sent.params.text).toBe('draft a\\_b\\*c');
+    expect(sent.params.parse_mode).toBe('Markdown');
+  });
+
   it('reports an API failure to the admin', async () => {
     __pushDb(adminUser, [{ channelId: -100 }], null);
     __onApi((method) => {
