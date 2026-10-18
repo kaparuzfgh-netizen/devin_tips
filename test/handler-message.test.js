@@ -68,14 +68,11 @@ describe('handlers/message.js basics', () => {
   });
 });
 
-// BUG (see audit B13): in handleCommand the variable is `chatId`, but every
-// admin-command branch calls api.sendMessage({ chat_id, ... }) — a shorthand
-// for an undefined `chat_id`. That throws ReferenceError, the outer catch
-// swallows it into a generic "Ошибка выполнения команды" — so ALL admin
-// commands are dead in production, including their denial replies.
-// These tests encode the intended behaviour and stay red-marked until the fix.
+// Regression lock for KI-002 (audit B13): every admin-command branch used the
+// `{ chat_id }` shorthand while the variable is `chatId` — ReferenceError killed
+// all admin commands. Fixed by `chat_id: chatId`; these are ordinary tests now.
 describe('handlers/message.js admin guard', () => {
-  it.fails.each(['/changelog feature: x', '/publish_changelog -100', '/channel_config k v', '/ai_summary', '/clean_daily_posts'])(
+  it.each(['/changelog feature: x', '/publish_changelog -100', '/channel_config k v', '/ai_summary', '/clean_daily_posts'])(
     '%s is denied for a regular user',
     async (cmd) => {
       __pushDb(plainUser);
@@ -84,7 +81,7 @@ describe('handlers/message.js admin guard', () => {
     },
   );
 
-  it.fails('/changelog happy path inserts an entry', async () => {
+  it('/changelog happy path inserts an entry', async () => {
     __pushDb(adminUser, [{ id: 1 }]);
     await handler(msg('/changelog feature: новая штука', { userId: 40576673, username: 'kaparuz' }), {});
     const ins = dbCalls.find((s) => s[0].op === 'insert' && s[0].table === 'changelog');
@@ -92,14 +89,14 @@ describe('handlers/message.js admin guard', () => {
     expect(lastSend().text).toContain('Запись добавлена');
   });
 
-  it.fails('/changelog rejects a bad category', async () => {
+  it('/changelog rejects a bad category', async () => {
     __pushDb(adminUser);
     await handler(msg('/changelog bogus: x', { userId: 40576673, username: 'kaparuz' }), {});
     expect(lastSend().text).toContain('Неверная категория');
     expect(dbCalls.some((s) => s[0].op === 'insert')).toBe(false);
   });
 
-  it.fails('/clean_daily_posts deletes rows for admin', async () => {
+  it('/clean_daily_posts deletes rows for admin', async () => {
     __pushDb(adminUser, { rowsAffected: 3 });
     await handler(msg('/clean_daily_posts', { userId: 40576673, username: 'kaparuz' }), {});
     expect(dbCalls.some((s) => s[0].op === 'delete' && s[0].table === 'daily_posts')).toBe(true);

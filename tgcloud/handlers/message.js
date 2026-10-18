@@ -50,11 +50,11 @@ async function handleCommand(command, chatId, user, message) {
     // Команда для очистки тестовых данных из daily_posts
     if (cmd === '/clean_daily_posts') {
       if (!isAdmin(user)) {
-        await api.sendMessage({ chat_id, text: '❌ Только для админов' });
+        await api.sendMessage({ chat_id: chatId, text: '❌ Только для админов' });
         return;
       }
       const result = await db.delete(dailyPosts).run();
-      await api.sendMessage({ chat_id, text: `✅ Удалено ${result.rowsAffected} записей из daily_posts` });
+      await api.sendMessage({ chat_id: chatId, text: `✅ Удалено ${result.rowsAffected} записей из daily_posts` });
       return;
     }
 
@@ -164,87 +164,87 @@ async function handleCommand(command, chatId, user, message) {
 
     case '/changelog':
       if (!isAdmin(user)) {
-        await api.sendMessage({ chat_id, text: '❌ Только для админов' });
+        await api.sendMessage({ chat_id: chatId, text: '❌ Только для админов' });
         return;
       }
       if (!args) {
-        await api.sendMessage({ chat_id, text: '❌ Укажи категорию и изменения. Пример: /changelog feature: Добавлена функция X\nКатегории: feature, fix, improvement, documentation' });
+        await api.sendMessage({ chat_id: chatId, text: '❌ Укажи категорию и изменения. Пример: /changelog feature: Добавлена функция X\nКатегории: feature, fix, improvement, documentation' });
         return;
       }
       const parts = args.split(':');
       if (parts.length < 2) {
-        await api.sendMessage({ chat_id, text: '❌ Неверный формат. Используй: /changelog <категория>: <изменения>' });
+        await api.sendMessage({ chat_id: chatId, text: '❌ Неверный формат. Используй: /changelog <категория>: <изменения>' });
         return;
       }
       const category = parts[0].trim().toLowerCase();
       const changes = parts.slice(1).join(':').trim();
       const validCategories = ['feature', 'fix', 'improvement', 'documentation'];
       if (!validCategories.includes(category)) {
-        await api.sendMessage({ chat_id, text: `❌ Неверная категория. Доступно: ${validCategories.join(', ')}` });
+        await api.sendMessage({ chat_id: chatId, text: `❌ Неверная категория. Доступно: ${validCategories.join(', ')}` });
         return;
       }
       await addChangelogEntry(category, changes);
-      await api.sendMessage({ chat_id, text: '✅ Запись добавлена в changelog' });
+      await api.sendMessage({ chat_id: chatId, text: '✅ Запись добавлена в changelog' });
       break;
 
     case '/publish_changelog':
       if (!isAdmin(user)) {
-        await api.sendMessage({ chat_id, text: '❌ Только для админов' });
+        await api.sendMessage({ chat_id: chatId, text: '❌ Только для админов' });
         return;
       }
       if (!args) {
-        await api.sendMessage({ chat_id, text: '❌ Укажи ID канала' });
+        await api.sendMessage({ chat_id: chatId, text: '❌ Укажи ID канала' });
         return;
       }
       const result = await publishChangelog(parseInt(args));
       if (result.success) {
-        await api.sendMessage({ chat_id, text: `✅ Опубликовано ${result.published} записей` });
+        await api.sendMessage({ chat_id: chatId, text: `✅ Опубликовано ${result.published} записей` });
       } else {
-        await api.sendMessage({ chat_id, text: result.message });
+        await api.sendMessage({ chat_id: chatId, text: result.message });
       }
       break;
 
     case '/channel_config':
       if (!isAdmin(user)) {
-        await api.sendMessage({ chat_id, text: '❌ Только для админов' });
+        await api.sendMessage({ chat_id: chatId, text: '❌ Только для админов' });
         return;
       }
       const configParts = args.split(' ');
       if (configParts.length < 2) {
-        await api.sendMessage({ chat_id, text: '❌ Использование: /channel_config <key> <value>\nКлючи: deleteServiceMessages, autoBoostRequest, targetBoostLevel, changelogChannelId' });
+        await api.sendMessage({ chat_id: chatId, text: '❌ Использование: /channel_config <key> <value>\nКлючи: deleteServiceMessages, autoBoostRequest, targetBoostLevel, changelogChannelId' });
         return;
       }
       const key = configParts[0];
       const value = configParts.slice(1).join(' ');
       await setChannelSetting(chatId, key, value);
-      await api.sendMessage({ chat_id, text: `✅ Настройка ${key} = ${value} сохранена` });
+      await api.sendMessage({ chat_id: chatId, text: `✅ Настройка ${key} = ${value} сохранена` });
       break;
 
     case '/boost_request':
       if (!isAdmin(user)) {
-        await api.sendMessage({ chat_id, text: '❌ Только для админов' });
+        await api.sendMessage({ chat_id: chatId, text: '❌ Только для админов' });
         return;
       }
       if (!args) {
-        await api.sendMessage({ chat_id, text: '❌ Укажи целевой уровень' });
+        await api.sendMessage({ chat_id: chatId, text: '❌ Укажи целевой уровень' });
         return;
       }
       const boostResult = await sendBoostRequest(chatId, parseInt(args));
-      await api.sendMessage({ chat_id, text: boostResult.message });
+      await api.sendMessage({ chat_id: chatId, text: boostResult.message });
       break;
 
     case '/reaction_trigger':
       if (!isAdmin(user)) {
-        await api.sendMessage({ chat_id, text: '❌ Только для админов' });
+        await api.sendMessage({ chat_id: chatId, text: '❌ Только для админов' });
         return;
       }
       const triggerParts = args.split(' ');
       if (triggerParts.length < 3) {
-        await api.sendMessage({ chat_id, text: '❌ Использование: /reaction_trigger <post_id> <count> <action>' });
+        await api.sendMessage({ chat_id: chatId, text: '❌ Использование: /reaction_trigger <post_id> <count> <action>' });
         return;
       }
       await createReactionTrigger(parseInt(triggerParts[0]), chatId, parseInt(triggerParts[1]), triggerParts[2]);
-      await api.sendMessage({ chat_id, text: '✅ Триггер создан' });
+      await api.sendMessage({ chat_id: chatId, text: '✅ Триггер создан' });
       break;
 
     case '/get_channel_id':
@@ -266,33 +266,33 @@ async function handleCommand(command, chatId, user, message) {
 
     case '/set_openai_key':
       if (!isAdmin(user)) {
-        await api.sendMessage({ chat_id, text: '❌ Только для админов' });
+        await api.sendMessage({ chat_id: chatId, text: '❌ Только для админов' });
         return;
       }
       if (!args) {
-        await api.sendMessage({ chat_id, text: '❌ Укажи API ключ. Пример: /set_openai_key gsk_...' });
+        await api.sendMessage({ chat_id: chatId, text: '❌ Укажи API ключ. Пример: /set_openai_key gsk_...' });
         return;
       }
       await setOpenaiApiKey(args);
-      await api.sendMessage({ chat_id, text: '✅ OpenAI API ключ сохранен' });
+      await api.sendMessage({ chat_id: chatId, text: '✅ OpenAI API ключ сохранен' });
       break;
 
     case '/ai_summary':
       if (!isAdmin(user)) {
-        await api.sendMessage({ chat_id, text: '❌ Только для админов' });
+        await api.sendMessage({ chat_id: chatId, text: '❌ Только для админов' });
         return;
       }
       const summary = await generateDailySummary();
       if (!summary) {
-        await api.sendMessage({ chat_id, text: '❌ Нет изменений за сегодня или API ключ не настроен' });
+        await api.sendMessage({ chat_id: chatId, text: '❌ Нет изменений за сегодня или API ключ не настроен' });
       } else {
-        await api.sendMessage({ chat_id, text: `🤖 AI Summary:\n\n${summary}` });
+        await api.sendMessage({ chat_id: chatId, text: `🤖 AI Summary:\n\n${summary}` });
       }
       break;
 
     case '/my_channels':
       if (!isAdmin(user)) {
-        await api.sendMessage({ chat_id, text: '❌ Только для админов' });
+        await api.sendMessage({ chat_id: chatId, text: '❌ Только для админов' });
         return;
       }
       try {
@@ -302,7 +302,7 @@ async function handleCommand(command, chatId, user, message) {
           text: `ℹ️ Бот @${me.username} должен быть добавлен в канал как админ.\n\nПосле добавления просто перешли любое сообщение из канала боту - он покажет ID.`,
         });
       } catch (e) {
-        await api.sendMessage({ chat_id, text: '❌ Ошибка' });
+        await api.sendMessage({ chat_id: chatId, text: '❌ Ошибка' });
       }
       break;
 
@@ -311,7 +311,7 @@ async function handleCommand(command, chatId, user, message) {
         const me = await api.getMe();
         await sendRichMessage(chatId, `✅ Бот работает!\n\n🤖 Бот: @${me.username}\n👤 Твой ID: ${formatId(user.telegramId)}\n👤 Твоя роль: ${user.role}`);
       } catch (e) {
-        await api.sendMessage({ chat_id, text: '❌ Ошибка проверки статуса' });
+        await api.sendMessage({ chat_id: chatId, text: '❌ Ошибка проверки статуса' });
       }
       break;
 

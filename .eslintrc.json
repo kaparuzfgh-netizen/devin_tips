@@ -14,6 +14,6 @@
     "semi": "off",
     "quotes": "off",
     "no-case-declarations": "off",
-    "no-undef": "off"
+    "no-undef": "error"
   }
 }

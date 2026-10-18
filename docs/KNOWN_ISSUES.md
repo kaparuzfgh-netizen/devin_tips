@@ -35,7 +35,9 @@ Handler `my_chat_member` работает и сохраняет ID автома�
 
 **Дата:** 2026-10-19
 **Источник:** аудит контура надёжности + regression-тесты
-**Статус:** CONFIRMED (воспроизведено тестами, код НЕ чинился по инструкции)
+**Статус:** FIXED — `fix: chat_id shortcut in admin handlers (KI-002)`;
+29 мест `{ chat_id,` → `{ chat_id: chatId,` в `tgcloud/handlers/message.js`;
+8 тестов сняты с `it.fails`; ESLint `no-undef` включён обратно.
 
 ### Наблюдаемое поведение
 В `tgcloud/handlers/message.js` функция `handleCommand` объявлена с параметром `chatId`,
@@ -50,9 +52,11 @@ Handler `my_chat_member` работает и сохраняет ID автома�
 Включая ответы «Только для админов» внутри этих команд — то есть отказ тоже не доходит.
 
 ### Доказательство
-`npm run test` — 13 тестов помечены `it.fails` и фиксируют это поведение.
-`tsc --checkJs` над tgcloud/ выдаёт `TS2552: Cannot find name 'chat_id'` (~20 мест).
-ESLint правило `no-undef` отключено в `.eslintrc.json` — поэтому баг прошёл gate.
+`npm run test` — 13 тестов помечены `it.fails` и фиксируют это поведение (8 из них —
+KI-002, после фикса стали обычными `it`).
+`tsc --checkJs` над tgcloud/ выдавал `TS2552: Cannot find name 'chat_id'` (~29 мест).
+ESLint правило `no-undef` было отключено в `.eslintrc.json` — поэтому баг прошёл gate;
+после фикса правило включено (`"no-undef": "error"`).
 
 ### Связанное правило
 Правило платформы (`docs/tgcloud-rules.md`) прямо предупреждало про путаницу
