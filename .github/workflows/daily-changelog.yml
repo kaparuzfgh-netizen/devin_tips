@@ -1,0 +1,44 @@
+name: Daily Changelog
+
+on:
+  schedule:
+    # Runs daily at 07:00 UTC (12:00 Asia/Almaty)
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Date for changelog (YYYY-MM-DD, optional)'
+        required: false
+        type: string
+      test:
+        description: 'Test mode (adds [ТЕСТ] prefix)'
+        required: false
+        type: boolean
+        default: false
+      simulate_ai_failure:
+        description: 'Simulate AI failure (for testing fallback)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  daily-changelog:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run changelog script
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          ADMIN_CHAT_ID: ${{ vars.ADMIN_CHAT_ID }}
+          INPUT_DATE: ${{ inputs.date }}
+          INPUT_TEST: ${{ inputs.test }}
+          INPUT_SIMULATE_AI_FAILURE: ${{ inputs.simulate_ai_failure }}
+        run: |
+          node scripts/daily-changelog.js

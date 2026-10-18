@@ -1,157 +1,147 @@
 # Devin Tips Bot
 
-A Telegram bot demonstrating vibecoding with Devin AI and Telegram Serverless capabilities.
+Telegram-бот на Telegram Serverless, публикующий ежедневный changelog в канал @devin_tips.
 
-## Overview
+## Обзор
 
-Devin Tips Bot is a comprehensive Telegram bot that:
-- Publishes educational content about Devin AI
-- Shows its own code (self-reference)
-- Manages daily changelogs
-- Demonstrates advanced Telegram Bot API features
-- Runs on Telegram's free Serverless infrastructure
+Бот демонстрирует возможности вайбкодинга на Telegram Serverless — бесплатной платформе для Telegram-ботов. Главная функция: ежедневная публикация changelog с подтверждением админа.
 
-## Features
+## Архитектура
 
-### Core Functionality
-- **Educational Posts** - Tips and tutorials about Devin AI
-- **Code Examples** - Bot shows its own code with explanations
-- **Q&A System** - Answers questions about vibecoding
-- **Daily Changelog** - Product changelog published to @devin_tips
-
-### Advanced Features
-- **Channel Management**
-  - Automatic service message deletion
-  - Boost level monitoring
-  - Auto boost requests
-  - Reaction-based triggers
-
-- **Change Tracking**
-  - Daily changelog generation
-  - GitHub integration
-  - AI-assisted summaries (planned)
-
-- **Self-Reference**
-  - Bot code viewing
-  - Module browsing
-  - Code explanations
-
-## Architecture
-
-### Platform
+### Платформа
 - **Runtime:** Telegram Serverless (V8 isolate)
 - **Language:** JavaScript (ES modules)
 - **Database:** Built-in SQLite
 - **Cost:** Free
 - **Deployment:** `npx tgcloud push`
 
-### Project Structure
+### Структура проекта
 ```
-vibebot/
-├── tgcloud/              # Serverless code (deployed)
-│   ├── schema.js         # Database schema
-│   ├── lib/              # Shared modules
-│   └── handlers/         # Telegram update handlers
-├── docs/                 # Documentation
-├── SYSTEM_MAP.md         # Architecture overview
-├── TASK_TRACKER.md       # Task tracking
-├── DOCUMENT_CANON.md     # Technical specification
-└── AGENTS.md             # AI assistant rules
+devin_tips/
+├── tgcloud/              # Код для облака (деплоится)
+│   ├── schema.js         # Схема БД
+│   ├── lib/              # Общие модули
+│   │   ├── auth.js       # Аутентификация и права
+│   │   ├── channel.js    # Операции с каналами
+│   │   └── changelog.js  # Управление changelog
+│   └── handlers/         # Обработчики Telegram-обновлений
+│       ├── message.js
+│       ├── callback_query.js
+│       └── my_chat_member.js
+├── scripts/              # Скрипты для GitHub Actions
+├── docs/                 # Документация
+├── .github/workflows/    # GitHub Actions
+├── AGENTS.md             # Правила для ИИ-ассистента
+├── TASK_TRACKER.md       # Трекер задач
+└── VISION.md             # Стратегия развития
 ```
 
-## Quick Start
+### Схема БД
+- **users** — пользователи с ролями (admin/user)
+- **changelog** — записи changelog
+- **daily_posts** — ежедневные посты со статусом (published/rejected)
+- **channel_settings** — настройки канала (ID канала)
+- **code_snippets** — код бота для самоссылки (для будущего)
 
-### Prerequisites
+### Поток данных (целевая схема)
+1. GitHub Action запускается ежедневно в 07:00 UTC (12:00 Asia/Almaty)
+2. Action берёт коммиты за сутки через GitHub API
+3. Groq генерирует связный текст (или запасной вариант — простой список)
+4. Action отправляет черновик админу в личку через Bot API
+5. Админ нажимает «Опубликовать» → бот копирует сообщение в канал
+6. Бот записывает дату как опубликованную
+
+### Ограничения платформы
+- **Нет доступа к файлам** — код snippets хранится в SQLite
+- **Нет npm-пакетов** — только встроенный SDK (`db`, `api`, `fetch`)
+- **Нет внешних ключей** — целостность БД enforced в коде
+- **Нет планировщика** — используется GitHub Actions
+- **Нет хранилища секретов** — секреты в GitHub Secrets
+
+## Где что хранится
+
+**Секреты (в GitHub Secrets):**
+- `TELEGRAM_BOT_TOKEN` — токен бота от @BotFather
+- `GROQ_API_KEY` — ключ Groq для генерации текста
+
+**Переменные (в GitHub Variables):**
+- `ADMIN_CHAT_ID` — числовой ID чата админа в Telegram
+
+**В БД бота:**
+- ID канала @devin_tips (таблица `channel_settings`)
+- Статусы ежедневных постов (таблица `daily_posts`)
+
+**В самом боте секретов нет.**
+
+## Быстрый старт
+
+### Требования
 - Node.js 18+
-- Telegram account
-- Bot created via @BotFather
-- Serverless enabled in BotFather
+- Telegram-аккаунт
+- Бот создан через @BotFather
+- Serverless включён в @BotFather
 
-### Installation
+### Установка
 
-1. Clone the repository
+1. Клонирование репозитория
 ```bash
 git clone https://github.com/kaparuzfgh-netizen/devin_tips.git
 cd devin_tips
 ```
 
-2. Install dependencies
+2. Установка зависимостей
 ```bash
 npm install
 ```
 
-3. Link your bot
+3. Подключение бота
 ```bash
 npx tgcloud login
 ```
-Enter your CLI Access Token from @BotFather
+Введи CLI Access Token от @BotFather
 
-4. Deploy
+4. Деплой
 ```bash
 npx tgcloud push
 npx tgcloud migrate --yes
 ```
 
-## Usage
+## Команды
 
-### User Commands
-- `/start` - Introduction
-- `/help` - Command reference
-- `/posts` - List recent posts
-- `/code <name>` - View bot code
-- `/listcode` - List all modules
-- `/ask <question>` - Ask a question
-- `/get_channel_id @username` - Get channel ID
+### Пользовательские
+- `/start` — Приветствие
+- `/help` — Справка по командам
+- `/status` — Статус бота и роль пользователя
 
-### Admin Commands
-- `/changelog <changes>` - Add changelog entry
-- `/publish_changelog <channel_id>` - Publish to channel
-- `/channel_config <key> <value>` - Configure channel
-- `/boost_request <level>` - Request boosts
-- `/reaction_trigger <post_id> <count> <action>` - Create trigger
+### Админские
+- `/get_channel_id @username` — Получить ID канала
 
-## Documentation
+## Планы
 
-- [SYSTEM_MAP.md](SYSTEM_MAP.md) - Architecture overview
-- [TASK_TRACKER.md](TASK_TRACKER.md) - Task tracking
-- [DOCUMENT_CANON.md](DOCUMENT_CANON.md) - Technical specification
-- [AGENTS.md](AGENTS.md) - AI assistant rules
+Полная стратегия развития в [docs/VISION.md](docs/VISION.md). Кратко:
 
-## Limitations & Workarounds
+- **Этап 1 (MVP):** Ежедневный changelog с ручным подтверждением
+- **Этап 2:** Автоматическая публикация и сигнал о сбое
+- **Этап 3:** Сбор новостей, Q&A, показ кода
+- **Этап 4:** Управление каналом (удаление сервисных сообщений, бусты)
+- **Этап 5:** Mini App, аналитика, мультибот
 
-### No Filesystem Access
-**Problem:** Cannot read files at runtime
-**Solution:** Code snippets stored in SQLite DB
-**Trade-off:** Manual updates, but enables self-reference
+## Документация
 
-### No npm Packages
-**Problem:** Cannot install external libraries
-**Solution:** Use built-in SDK (`db`, `api`, `fetch`)
-**Trade-off:** Limited ecosystem, zero dependencies
-
-### No Foreign Keys
-**Problem:** SQLite runs with FKs disabled
-**Solution:** Enforce integrity in application code
-**Trade-off:** More code, platform-compliant
-
-## Contributing
-
-Contributions welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) (to be created).
+- [VISION.md](docs/VISION.md) — Стратегия развития
+- [TASK_TRACKER.md](TASK_TRACKER.md) — Трекер задач
+- [AGENTS.md](AGENTS.md) — Правила для ИИ-ассистента
+- [docs/tgcloud-sdk.md](docs/tgcloud-sdk.md) — Документация SDK
+- [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) — Известные проблемы
 
 ## License
 
-MIT License - see LICENSE file
+MIT License — см. файл LICENSE
 
-## Acknowledgments
+## Канал
 
-- Telegram Serverless team
-- Devin AI
-- The vibecoding community
+Подписывайся: [@devin_tips](https://t.me/devin_tips)
 
-## Channel
+## Поддержка
 
-Follow updates at: [@devin_tips](https://t.me/devin_tips)
-
-## Support
-
-For issues and questions, please use GitHub Issues.
+Для вопросов и проблем используй GitHub Issues.

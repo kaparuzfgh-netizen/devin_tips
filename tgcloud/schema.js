@@ -79,3 +79,11 @@ export const channelSettings = table('channel_settings', {
   openaiApiKey: text('openai_api_key'),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
 });
+
+// Daily posts with admin approval
+export const dailyPosts = table('daily_posts', {
+  date: text('date').primaryKey(),
+  status: text('status').notNull(),
+  channelMessageId: integer('channel_message_id'),
+  decidedAt: integer('decided_at', { mode: 'timestamp' }),
+});

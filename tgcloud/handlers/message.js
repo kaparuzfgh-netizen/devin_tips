@@ -298,10 +298,7 @@ async function handleCommand(command, chatId, user, message) {
     case '/status':
       try {
         const me = await api.getMe();
-        await api.sendMessage({
-          chat_id: chatId,
-          text: `✅ Бот работает!\n\n🤖 Бот: @${me.username}\n👤 Твоя роль: ${user.role}\n\nЕсли команды не работают, проверь:\n• Бот добавлен в канал как админ\n• Канал публичный (@username)`,
-        });
+        await sendRichMessage(chatId, `✅ Бот работает!\n\n🤖 Бот: @${me.username}\n👤 Твой ID: ${formatId(user.telegramId)}\n👤 Твоя роль: ${user.role}`);
       } catch (e) {
         await api.sendMessage({ chat_id, text: '❌ Ошибка проверки статуса' });
       }
