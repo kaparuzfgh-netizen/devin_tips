@@ -58,7 +58,8 @@ update message_reaction_count → handlers/message_reaction_count.js → lib/cha
 | `lib/channel.js` | Настройки канала, удаление сервисных, бусты, триггеры реакций | — (KI-004/B7,B11) | schema, api |
 | `lib/changelog.js` | Старая схема changelog (команды ЗАМЕНЕНО, код не удалять) + generateDailySummary | — | schema, api, openai |
 | `lib/content.js` | CRUD постов и сниппетов кода | — (KI-004/B3) | schema |
-| `lib/message.js` | sendRichMessage (+ повтор plain при 400 parse entities), escapeMd, formatId, formatCode — единый parse_mode Markdown | Frozen (изменён по решению владельца, KI-005) | api |
+| `lib/message.js` | sendRichMessage (parse_mode HTML, обычная строка экранируется, повтор plain при 400 parse entities), реэкспорт formatId/formatCode | Frozen (изменён по решению владельца, KI-005/KI-006) | api, format |
+| `lib/format.js` | Фикстуры оформления HTML: html-шаблон, header/list/footer/tags, ok/fail/empty, changelogPost/draftPost, stripHtml (чистый, без sdk) | — (KI-006) | — |
 | `lib/openai.js` | AI-summary через OpenAI-совместимый endpoint | — (KI-003) | schema, fetch |
 | `lib/github.js` | GitHub API (commits/releases/diff) | мёртвый код | fetch |
 | `lib/self.js` | Статичные сниппеты кода бота | мёртвый код | content |

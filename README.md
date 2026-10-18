@@ -26,7 +26,8 @@ devin_tips/
 │   │   ├── changelog.js  # Управление changelog (старая схема)
 │   │   ├── content.js    # Посты и сниппеты кода
 │   │   ├── github.js     # GitHub API (не используется)
-│   │   ├── message.js    # sendRichMessage, escapeMd, formatId, formatCode
+│   │   ├── message.js    # sendRichMessage (HTML), formatId, formatCode
+│   │   ├── format.js     # Фикстуры оформления: шапка, подвал, теги, списки
 │   │   ├── openai.js     # AI-summary (см. docs/KNOWN_ISSUES.md, KI-003)
 │   │   └── self.js       # Статичные сниппеты (не используется)
 │   └── handlers/         # Обработчики Telegram-обновлений

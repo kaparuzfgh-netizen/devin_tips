@@ -88,8 +88,9 @@ Telegram Serverless (JavaScript, встроенный SQLite). Админ: @kapa
 - Все вызовы БД — `await`. Внешних ключей нет. Дропы — только `.deprecated()`.
 - `chat_id` в параметрах API — НЕ переменная `chatId`; шортхенд `{ chat_id }` крашит.
 - `push` не трогает БД: менялась `schema.js` → отдельный `npx tgcloud migrate`.
-- Все сообщения — через `sendRichMessage` (`lib/message.js`), прямой `api.sendMessage`
-  запрещён. Любой динамический текст (ввод пользователя, БД, ошибки) — через `escapeMd()`.
+- Все сообщения — через `sendRichMessage` (`lib/message.js`, parse_mode HTML), прямой
+  `api.sendMessage` запрещён. Оформление — только фикстуры `lib/format.js` (`html`-шаблон
+  экранирует подстановки сам); своего HTML-оформления в хендлерах не писать.
 
 ## Документация
 - Справочники: `README.md` (для людей), `SYSTEM_MAP.md` (карта кода, Frozen/Core),
