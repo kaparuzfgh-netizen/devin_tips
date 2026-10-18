@@ -1,0 +1,158 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import handler from '../tgcloud/handlers/message.js';
+import { apiCalls, __onApi, __resetApi } from './mocks/sdk.js';
+import { __pushDb, __resetDb, dbCalls } from './mocks/sdk-db.js';
+
+beforeEach(() => {
+  __resetDb();
+  __resetApi();
+  __onApi((method) => (method === 'getMe' ? { username: 'devin_tips_bot' } : {}));
+});
+
+const adminUser = { telegramId: 40576673, username: 'kaparuz', role: 'admin' };
+const plainUser = { telegramId: 999, username: 'user9', role: 'user' };
+
+/** @param {string | undefined} text @param {any} [opts] */
+function msg(text, { userId = 999, username = 'user9', chatId = 50, ...extra } = {}) {
+  return {
+    chat: { id: chatId },
+    from: { id: userId, username },
+    text,
+    ...extra,
+  };
+}
+
+const lastSend = () => apiCalls.filter((c) => c.method === 'sendMessage').at(-1)?.params;
+const valuesOf = (steps) => steps.find((s) => s.op === 'values')?.v;
+
+describe('handlers/message.js basics', () => {
+  it('/start greets a regular user without admin section', async () => {
+    __pushDb(plainUser);
+    await handler(msg('/start'), {});
+    expect(lastSend().text).toContain('Привет');
+    expect(lastSend().text).not.toContain('Админ-команды');
+  });
+
+  it('/start shows admin commands to admin', async () => {
+    __pushDb(adminUser);
+    await handler(msg('/start', { userId: 40576673, username: 'kaparuz' }), {});
+    expect(lastSend().text).toContain('Админ-команды');
+  });
+
+  it('/status replies via sendRichMessage with role', async () => {
+    __pushDb(plainUser);
+    await handler(msg('/status'), {});
+    const p = lastSend();
+    expect(p.parse_mode).toBe('Markdown');
+    expect(p.text).toContain('@devin_tips_bot');
+    expect(p.text).toContain('user');
+  });
+
+  it('replies with the forwarded chat id', async () => {
+    __pushDb(plainUser);
+    await handler(msg(undefined, { forward_from_chat: { id: -100111, title: 'Ch' } }), {});
+    expect(lastSend().text).toContain('-100111');
+    expect(lastSend().text).toContain('Ch');
+  });
+
+  it('unknown command gets the fallback hint', async () => {
+    __pushDb(plainUser);
+    await handler(msg('/zzz'), {});
+    expect(lastSend().text).toContain('Неизвестная команда');
+  });
+
+  it('plain text question about devin gets the canned answer', async () => {
+    __pushDb(plainUser);
+    await handler(msg('расскажи про devin'), {});
+    expect(lastSend().text).toContain('Devin');
+  });
+});
+
+// BUG (see audit B13): in handleCommand the variable is `chatId`, but every
+// admin-command branch calls api.sendMessage({ chat_id, ... }) — a shorthand
+// for an undefined `chat_id`. That throws ReferenceError, the outer catch
+// swallows it into a generic "Ошибка выполнения команды" — so ALL admin
+// commands are dead in production, including their denial replies.
+// These tests encode the intended behaviour and stay red-marked until the fix.
+describe('handlers/message.js admin guard', () => {
+  it.fails.each(['/changelog feature: x', '/publish_changelog -100', '/channel_config k v', '/ai_summary', '/clean_daily_posts'])(
+    '%s is denied for a regular user',
+    async (cmd) => {
+      __pushDb(plainUser);
+      await handler(msg(cmd), {});
+      expect(lastSend().text).toContain('Только для админов');
+    },
+  );
+
+  it.fails('/changelog happy path inserts an entry', async () => {
+    __pushDb(adminUser, [{ id: 1 }]);
+    await handler(msg('/changelog feature: новая штука', { userId: 40576673, username: 'kaparuz' }), {});
+    const ins = dbCalls.find((s) => s[0].op === 'insert' && s[0].table === 'changelog');
+    expect(valuesOf(ins)).toMatchObject({ category: 'feature', changes: 'новая штука' });
+    expect(lastSend().text).toContain('Запись добавлена');
+  });
+
+  it.fails('/changelog rejects a bad category', async () => {
+    __pushDb(adminUser);
+    await handler(msg('/changelog bogus: x', { userId: 40576673, username: 'kaparuz' }), {});
+    expect(lastSend().text).toContain('Неверная категория');
+    expect(dbCalls.some((s) => s[0].op === 'insert')).toBe(false);
+  });
+
+  it.fails('/clean_daily_posts deletes rows for admin', async () => {
+    __pushDb(adminUser, { rowsAffected: 3 });
+    await handler(msg('/clean_daily_posts', { userId: 40576673, username: 'kaparuz' }), {});
+    expect(dbCalls.some((s) => s[0].op === 'delete' && s[0].table === 'daily_posts')).toBe(true);
+    expect(lastSend().text).toContain('Удалено 3');
+  });
+
+  // BUG (see audit B7): /channel_config passes chatId — the admin's private
+  // chat — as the channel id, so settings land on a bogus channel_settings row.
+  // Expected: the command targets the configured channel, not the sender's DM.
+  it.fails('/channel_config writes to the configured channel, not the admin DM', async () => {
+    __pushDb(adminUser, { channelId: -100 }); // existing channel row
+    await handler(msg('/channel_config deleteServiceMessages true', { userId: 40576673, username: 'kaparuz', chatId: 50 }), {});
+    const ins = dbCalls.find((s) => s[0].op === 'insert' && s[0].table === 'channel_settings');
+    expect(valuesOf(ins)?.channelId).not.toBe(50);
+    const upd = dbCalls.find((s) => s[0].op === 'update' && s[0].table === 'channel_settings');
+    expect(upd).toBeTruthy();
+  });
+});
+
+describe('handlers/message.js content commands', () => {
+  it('/get_channel_id says none when DB is empty', async () => {
+    __pushDb(plainUser, []);
+    await handler(msg('/get_channel_id'), {});
+    expect(lastSend().text).toContain('не найдены');
+  });
+
+  it('/get_channel_id lists saved channel ids', async () => {
+    __pushDb(plainUser, [{ channelId: -1003747058496 }]);
+    await handler(msg('/get_channel_id'), {});
+    expect(lastSend().text).toContain('1003747058496');
+  });
+
+  it('/posts with empty DB says so', async () => {
+    __pushDb(plainUser, []);
+    await handler(msg('/posts'), {});
+    expect(lastSend().text).toContain('нет опубликованных постов');
+  });
+
+  it('/code without args asks for a name', async () => {
+    __pushDb(plainUser);
+    await handler(msg('/code'), {});
+    expect(lastSend().text).toContain('Укажи имя модуля');
+  });
+
+  it('/code reports a missing module', async () => {
+    __pushDb(plainUser, null);
+    await handler(msg('/code nope'), {});
+    expect(lastSend().text).toContain('не найден');
+  });
+
+  it('/ask without args asks for a question', async () => {
+    __pushDb(plainUser);
+    await handler(msg('/ask'), {});
+    expect(lastSend().text).toContain('Укажи вопрос');
+  });
+});

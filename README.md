@@ -22,18 +22,27 @@ devin_tips/
 │   ├── schema.js         # Схема БД
 │   ├── lib/              # Общие модули
 │   │   ├── auth.js       # Аутентификация и права
-│   │   ├── channel.js    # Операции с каналами
-│   │   └── changelog.js  # Управление changelog
+│   │   ├── channel.js    # Операции с каналами, триггеры реакций
+│   │   ├── changelog.js  # Управление changelog (старая схема)
+│   │   ├── content.js    # Посты и сниппеты кода
+│   │   ├── github.js     # GitHub API (не используется)
+│   │   ├── message.js    # sendRichMessage, formatId, formatCode
+│   │   ├── openai.js     # AI-summary (см. docs/KNOWN_ISSUES.md, KI-003)
+│   │   └── self.js       # Статичные сниппеты (не используется)
 │   └── handlers/         # Обработчики Telegram-обновлений
-│       ├── message.js
-│       ├── callback_query.js
-│       └── my_chat_member.js
-├── scripts/              # Скрипты для GitHub Actions
+│       ├── message.js            # Команды + свободный текст
+│       ├── callback_query.js     # Кнопки «Опубликовать/Отклонить»
+│       ├── my_chat_member.js     # Привязка channel_id
+│       ├── channel_post.js       # Сервисные сообщения, реакции
+│       └── message_reaction_count.js
+├── scripts/              # Скрипты для GitHub Actions (не деплоится)
+│   └── daily-changelog.js        # Коммиты → черновик админу
+├── test/                 # Vitest-тесты и моки sdk (не деплоится)
 ├── docs/                 # Документация
-├── .github/workflows/    # GitHub Actions
-├── AGENTS.md             # Правила для ИИ-ассистента
-├── TASK_TRACKER.md       # Трекер задач
-└── VISION.md             # Стратегия развития
+├── .github/workflows/    # daily-changelog.yml + check.yml (quality gate)
+├── AGENTS.md             # Единый файл правил для ИИ-агента
+├── SYSTEM_MAP.md         # Карта модулей, статусы Frozen/Core
+└── TASK_TRACKER.md       # Трекер задач
 ```
 
 ### Схема БД
@@ -41,7 +50,10 @@ devin_tips/
 - **changelog** — записи changelog
 - **daily_posts** — ежедневные посты со статусом (published/rejected)
 - **channel_settings** — настройки канала (ID канала)
+- **posts** — контентные посты (для будущего)
+- **conversations** — Q&A диалоги (для будущего)
 - **code_snippets** — код бота для самоссылки (для будущего)
+- **reaction_triggers** — триггеры по числу реакций
 
 ### Поток данных (целевая схема)
 1. GitHub Action запускается ежедневно в 07:00 UTC (12:00 Asia/Almaty)
@@ -112,9 +124,24 @@ npx tgcloud migrate --yes
 - `/start` — Приветствие
 - `/help` — Справка по командам
 - `/status` — Статус бота и роль пользователя
+- `/posts` — Последние опубликованные посты
+- `/code <name>` — Показать код бота
+- `/listcode` — Список модулей
+- `/ask <вопрос>` — Задать вопрос
+- `/get_channel_id` — Показать сохранённые ID каналов
+- `/my_channels` — Справка по привязке канала
 
 ### Админские
-- `/get_channel_id @username` — Получить ID канала
+- `/changelog <категория>: <текст>` — Запись в changelog (старая схема, заменена кнопками)
+- `/publish_changelog <channel_id>` — Публикация changelog (старая схема)
+- `/channel_config <key> <value>` — Настройки канала
+- `/boost_request <level>` — Запрос бустов
+- `/reaction_trigger <post_id> <count> <action>` — Триггер реакций
+- `/set_openai_key <key>` — Ключ для AI summary
+- `/ai_summary` — Сгенерировать AI summary
+- `/clean_daily_posts` — Очистить daily_posts (тестовая)
+
+> Внимание: у части админ-команд есть известная ошибка — см. `docs/KNOWN_ISSUES.md`, KI-002.
 
 ## Планы
 
@@ -126,11 +153,22 @@ npx tgcloud migrate --yes
 - **Этап 4:** Управление каналом (удаление сервисных сообщений, бусты)
 - **Этап 5:** Mini App, аналитика, мультибот
 
+## Проверки
+
+```bash
+npm run check    # lint + typecheck + тесты — единая команда верификации
+```
+
+Тесты: Vitest, `test/**/*.test.js`. Облачный `sdk` (БД, Telegram API, HTTP) замокан —
+реальные сервисы и секреты не нужны. То же самое гоняет CI (`.github/workflows/check.yml`)
+на каждый push и PR.
+
 ## Документация
 
+- [AGENTS.md](AGENTS.md) — Единый файл правил для ИИ-ассистента
+- [SYSTEM_MAP.md](SYSTEM_MAP.md) — Карта модулей и статусы Frozen/Core
 - [VISION.md](docs/VISION.md) — Стратегия развития
 - [TASK_TRACKER.md](TASK_TRACKER.md) — Трекер задач
-- [AGENTS.md](AGENTS.md) — Правила для ИИ-ассистента
 - [docs/tgcloud-sdk.md](docs/tgcloud-sdk.md) — Документация SDK
 - [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) — Известные проблемы
 
