@@ -72,14 +72,30 @@ describe('lib/changelog.js', () => {
     expect(updates).toHaveLength(2);
   });
 
-  it('publishChangelog escapes Markdown chars in entry fields', async () => {
+  it('publishChangelog escapes HTML chars in entry fields', async () => {
     __pushDb([
-      { id: 1, date: '2026-10-18', category: 'fix', changes: 'fixed a_b*c', published: false },
+      { id: 1, date: '2026-10-18', category: 'fix', changes: 'fixed a<b&c', published: false },
     ]);
     await publishChangelog(-100);
     const sent = apiCalls.find((c) => c.method === 'sendMessage');
-    expect(sent.params.text).toContain('fixed a\\_b\\*c');
-    expect(sent.params.parse_mode).toBe('Markdown');
+    expect(sent.params.text).toContain('fixed a&lt;b&amp;c');
+    expect(sent.params.parse_mode).toBe('HTML');
+  });
+
+  it('publishChangelog composes header, date groups, footer and tags', async () => {
+    __pushDb([
+      { id: 1, date: '2026-10-18', category: 'feature', changes: 'A', published: false },
+      { id: 2, date: '2026-10-17', category: 'fix', changes: 'B', published: false },
+    ]);
+    await publishChangelog(-100);
+    const t = apiCalls.find((c) => c.method === 'sendMessage').params.text;
+    expect(t).toContain('📝 Changelog');
+    expect(t).toContain('📅 <b>2026-10-18</b>');
+    expect(t).toContain('📅 <b>2026-10-17</b>');
+    expect(t).toContain('✨ <b>Feature</b>\n• A');
+    expect(t).toContain('🐛 <b>Fix</b>\n• B');
+    expect(t).toContain('<i>🐱 ВайбКот · @devin_tips</i>');
+    expect(t).toContain('#changelog #devin #feature #fix');
   });
 
   it('autoPublishChangelog publishes to each configured changelogChannelId', async () => {

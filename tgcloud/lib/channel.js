@@ -2,7 +2,8 @@ import { api } from 'sdk';
 import { db } from 'sdk';
 import { eq } from 'sdk/db';
 import { channelSettings, reactionTriggers } from '../schema.js';
-import { sendRichMessage, escapeMd } from './message.js';
+import { sendRichMessage } from './message.js';
+import { html } from './format.js';
 
 export async function deleteServiceMessage(chatId, messageId) {
   try {
@@ -29,7 +30,7 @@ export async function sendBoostRequest(channelId, targetLevel) {
   const needed = targetLevel - currentLevel;
   await sendRichMessage(
     channelId,
-    `🚀 Нам нужно ${escapeMd(needed)} бустов для достижения уровня ${escapeMd(targetLevel)}!\n\nТекущий уровень: ${escapeMd(currentLevel)}\n\nПожалуйста, поддержите канал бустом!`,
+    html`🚀 Нам нужно ${needed} бустов для достижения уровня ${targetLevel}!\n\nТекущий уровень: ${currentLevel}\n\nПожалуйста, поддержите канал бустом!`,
   );
   
   return { success: true, currentLevel, targetLevel, needed };
@@ -90,7 +91,7 @@ async function executeTriggerAction(trigger) {
       const data = JSON.parse(trigger.actionData || '{}');
       await sendRichMessage(
         trigger.channelId,
-        escapeMd(data.message || 'Триггер активирован!'),
+        html`${data.message || 'Триггер активирован!'}`,
       );
       break;
   }

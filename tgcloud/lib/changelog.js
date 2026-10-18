@@ -2,7 +2,8 @@ import { db } from 'sdk';
 import { eq, desc } from 'sdk/db';
 import { changelog, channelSettings } from '../schema.js';
 import { generateChangelogSummary } from './openai.js';
-import { sendRichMessage, escapeMd } from './message.js';
+import { sendRichMessage } from './message.js';
+import { html, raw, esc, list, footer, tags, DEFAULT_TAGS } from './format.js';
 
 const CATEGORY_EMOJIS = {
   feature: '✨',
@@ -45,11 +46,12 @@ export async function publishChangelog(channelId) {
     grouped[entry.date].push(entry);
   }
   
-  let text = '📝 Changelog\n\n';
-  
+  let body = '📝 Changelog\n\n';
+  const allCategories = [];
+
   for (const [date, entries] of Object.entries(grouped)) {
-    text += `📅 ${escapeMd(date)}\n\n`;
-    
+    body += `📅 <b>${esc(date)}</b>\n\n`;
+
     const byCategory = {};
     for (const entry of entries) {
       if (!byCategory[entry.category]) {
@@ -57,18 +59,19 @@ export async function publishChangelog(channelId) {
       }
       byCategory[entry.category].push(entry.changes);
     }
-    
+
     for (const [category, changes] of Object.entries(byCategory)) {
       const emoji = CATEGORY_EMOJIS[category] || '📌';
-      text += `${emoji} ${escapeMd(category.charAt(0).toUpperCase() + category.slice(1))}:\n`;
-      for (const change of changes) {
-        text += `  • ${escapeMd(change)}\n`;
-      }
-      text += '\n';
+      allCategories.push(category);
+      body += `${emoji} <b>${esc(category.charAt(0).toUpperCase() + category.slice(1))}</b>\n`;
+      body += String(list(changes)) + '\n\n';
     }
   }
-  
-  await sendRichMessage(channelId, text);
+
+  await sendRichMessage(
+    channelId,
+    html`${raw(body)}${footer()}\n\n${tags(...DEFAULT_TAGS, ...allCategories)}`,
+  );
   
   for (const entry of unpublished) {
     await db.update(changelog)

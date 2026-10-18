@@ -94,13 +94,13 @@ describe('lib/channel.js reaction triggers', () => {
     expect(setOf(upd)).toEqual({ triggered: true });
   });
 
-  it('escapes Markdown chars in the trigger action message', async () => {
-    __pushDb([{ id: 1, postId: 777, channelId: -100, requiredReactions: 5, action: 'send_message', actionData: '{"message":"a_b*c"}', triggered: false }]);
+  it('escapes HTML chars in the trigger action message', async () => {
+    __pushDb([{ id: 1, postId: 777, channelId: -100, requiredReactions: 5, action: 'send_message', actionData: '{"message":"a<b&c"}', triggered: false }]);
     __onApi((method) => (method === 'getMessageReactionCount' ? { total_reaction_count: 6 } : {}));
     await checkReactionTriggers(-100, 777);
     const sent = apiCalls.find((c) => c.method === 'sendMessage');
-    expect(sent.params.text).toBe('a\\_b\\*c');
-    expect(sent.params.parse_mode).toBe('Markdown');
+    expect(sent.params.text).toBe('a&lt;b&amp;c');
+    expect(sent.params.parse_mode).toBe('HTML');
   });
 
   it('does nothing when below the threshold', async () => {
