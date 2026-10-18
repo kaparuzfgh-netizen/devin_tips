@@ -43,8 +43,8 @@ describe('handlers/message.js basics', () => {
     __pushDb(plainUser);
     await handler(msg('/status'), {});
     const p = lastSend();
-    expect(p.parse_mode).toBe('Markdown');
-    expect(p.text).toContain('@devin\\_tips\\_bot');
+    expect(p.parse_mode).toBe('HTML');
+    expect(p.text).toContain('@devin_tips_bot');
     expect(p.text).toContain('user');
   });
 
@@ -67,40 +67,43 @@ describe('handlers/message.js basics', () => {
     expect(lastSend().text).toContain('Devin');
   });
 
-  it('/start escapes underscores in command names for a regular user', async () => {
+  it('/start sends command names unescaped for a regular user', async () => {
     __pushDb(plainUser);
     await handler(msg('/start'), {});
-    expect(lastSend().text).toContain('/get\\_channel\\_id');
-    expect(lastSend().text).toContain('/my\\_channels');
-    expect(lastSend().text).toContain('code \\[name]');
+    expect(lastSend().text).toContain('/get_channel_id');
+    expect(lastSend().text).toContain('/my_channels');
+    expect(lastSend().text).toContain('code [name]');
   });
 
-  it('/start escapes underscores in the admin command block', async () => {
+  it('/start includes the admin command block for admins', async () => {
     __pushDb(adminUser);
     await handler(msg('/start', { userId: 40576673, username: 'kaparuz' }), {});
     const t = lastSend().text;
-    for (const cmd of ['/publish\\_changelog', '/channel\\_config', '/boost\\_request', '/reaction\\_trigger', '/set\\_openai\\_key', '/ai\\_summary']) {
+    for (const cmd of ['/publish_changelog', '/channel_config', '/boost_request', '/reaction_trigger', '/set_openai_key', '/ai_summary']) {
       expect(t).toContain(cmd);
     }
   });
 
-  it('/help escapes underscores and brackets in command names', async () => {
+  it('/help keeps command names readable and escapes placeholders', async () => {
     __pushDb(plainUser);
     await handler(msg('/help'), {});
-    expect(lastSend().text).toContain('code\\_example');
-    expect(lastSend().text).toContain('code \\[name]');
+    expect(lastSend().text).toContain('code_example');
+    expect(lastSend().text).toContain('code [name]');
+    expect(lastSend().text).toContain('&lt;вопрос&gt;');
   });
 
-  // Regression lock: any `_` in a sent static text must be backslash-escaped
-  // (legacy Markdown eats unescaped underscores — see KI-005).
-  it('static /start and /help texts contain no unescaped underscores', async () => {
+  // Regression lock: static texts go out as HTML now — underscores stay as-is
+  // and every send must be parse_mode HTML (invalid markup is also caught by
+  // the mock validator in test/setup.js). See KI-005/KI-006.
+  it('static /start and /help texts are sent as HTML', async () => {
     for (const [cmd, user] of [['/start', plainUser], ['/start', adminUser], ['/help', plainUser]]) {
       __resetDb();
       __resetApi();
       __onApi((method) => (method === 'getMe' ? { username: 'devin_tips_bot' } : {}));
       __pushDb(user);
       await handler(msg(cmd, { userId: user.telegramId, username: user.username }), {});
-      expect(lastSend().text).not.toMatch(/(?<!\\)_/);
+      expect(lastSend().parse_mode).toBe('HTML');
+      expect(lastSend().text).toContain('/help');
     }
   });
 });
@@ -140,30 +143,31 @@ describe('handlers/message.js admin guard', () => {
     expect(lastSend().text).toContain('Удалено 3');
   });
 
-  it('/clean_daily_posts escapes underscores in the result text', async () => {
+  it('/clean_daily_posts keeps the table name readable', async () => {
     __pushDb(adminUser, { rowsAffected: 3 });
     await handler(msg('/clean_daily_posts', { userId: 40576673, username: 'kaparuz' }), {});
-    expect(lastSend().text).toContain('daily\\_posts');
+    expect(lastSend().text).toContain('daily_posts');
   });
 
-  it('/channel_config usage message escapes underscores', async () => {
+  it('/channel_config usage message escapes placeholders', async () => {
     __pushDb(adminUser);
     await handler(msg('/channel_config', { userId: 40576673, username: 'kaparuz' }), {});
-    expect(lastSend().text).toContain('channel\\_config');
+    expect(lastSend().text).toContain('channel_config');
+    expect(lastSend().text).toContain('&lt;key&gt;');
   });
 
-  it('/reaction_trigger usage message escapes underscores', async () => {
+  it('/reaction_trigger usage message escapes placeholders', async () => {
     __pushDb(adminUser);
     await handler(msg('/reaction_trigger', { userId: 40576673, username: 'kaparuz' }), {});
-    expect(lastSend().text).toContain('reaction\\_trigger');
-    expect(lastSend().text).toContain('post\\_id');
+    expect(lastSend().text).toContain('reaction_trigger');
+    expect(lastSend().text).toContain('&lt;post_id&gt;');
   });
 
-  it('/set_openai_key usage message escapes underscores', async () => {
+  it('/set_openai_key usage message keeps command and prefix readable', async () => {
     __pushDb(adminUser);
     await handler(msg('/set_openai_key', { userId: 40576673, username: 'kaparuz' }), {});
-    expect(lastSend().text).toContain('set\\_openai\\_key');
-    expect(lastSend().text).toContain('gsk\\_');
+    expect(lastSend().text).toContain('set_openai_key');
+    expect(lastSend().text).toContain('gsk_');
   });
 
   // BUG (see audit B7): /channel_config passes chatId — the admin's private
@@ -210,11 +214,11 @@ describe('handlers/message.js content commands', () => {
     expect(lastSend().text).toContain('не найден');
   });
 
-  it('/code escapes Markdown chars in the requested module name', async () => {
+  it('/code keeps special chars readable in the requested module name', async () => {
     __pushDb(plainUser, null);
     await handler(msg('/code no_pe*x'), {});
-    expect(lastSend().text).toContain('no\\_pe\\*x');
-    expect(lastSend().parse_mode).toBe('Markdown');
+    expect(lastSend().text).toContain('no_pe*x');
+    expect(lastSend().parse_mode).toBe('HTML');
   });
 
   it('/ask without args asks for a question', async () => {
