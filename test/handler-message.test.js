@@ -44,7 +44,7 @@ describe('handlers/message.js basics', () => {
     await handler(msg('/status'), {});
     const p = lastSend();
     expect(p.parse_mode).toBe('Markdown');
-    expect(p.text).toContain('@devin_tips_bot');
+    expect(p.text).toContain('@devin\\_tips\\_bot');
     expect(p.text).toContain('user');
   });
 
@@ -145,6 +145,13 @@ describe('handlers/message.js content commands', () => {
     __pushDb(plainUser, null);
     await handler(msg('/code nope'), {});
     expect(lastSend().text).toContain('не найден');
+  });
+
+  it('/code escapes Markdown chars in the requested module name', async () => {
+    __pushDb(plainUser, null);
+    await handler(msg('/code no_pe*x'), {});
+    expect(lastSend().text).toContain('no\\_pe\\*x');
+    expect(lastSend().parse_mode).toBe('Markdown');
   });
 
   it('/ask without args asks for a question', async () => {
