@@ -1,6 +1,9 @@
 {
   "name": "devin_tips",
   "private": true,
+  "engines": {
+    "node": ">=22.12"
+  },
   "devDependencies": {
     "@tgcloud/cli": "^0.2.0",
     "@types/node": "^24.19.2",
@@ -12,8 +15,8 @@
     "deploy": "tgcloud push",
     "status": "tgcloud status",
     "run": "tgcloud run",
-    "lint": "eslint tgcloud/**/*.js scripts/**/*.js test/**/*.js",
-    "lint:fix": "eslint tgcloud/**/*.js scripts/**/*.js test/**/*.js --fix",
+    "lint": "eslint \"tgcloud/**/*.js\" \"scripts/**/*.js\" \"test/**/*.js\" --max-warnings 0",
+    "lint:fix": "eslint \"tgcloud/**/*.js\" \"scripts/**/*.js\" \"test/**/*.js\" --fix --max-warnings 0",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "check": "npm run lint && npm run typecheck && npm run test"

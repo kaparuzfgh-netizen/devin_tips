@@ -21,15 +21,24 @@ on:
         type: boolean
         default: false
 
+permissions:
+  contents: read
+
 jobs:
   daily-changelog:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
 
       - name: Run changelog script
         env:

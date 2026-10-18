@@ -25,3 +25,9 @@ Thumbs.db
 # Build artifacts
 dist/
 build/
+
+# Coverage reports
+coverage/
+
+# TypeScript incremental build info
+*.tsbuildinfo
