@@ -21,12 +21,21 @@ if (!GITHUB_REPOSITORY || !GITHUB_TOKEN || !TELEGRAM_BOT_TOKEN || !ADMIN_CHAT_ID
 }
 
 // Calculate date window (yesterday 07:00 UTC to today 07:00 UTC)
+// If inputDate is provided, use that day (00:00 UTC to next day 00:00 UTC)
 function getDateWindow(inputDate) {
-  const today = inputDate ? new Date(inputDate + 'T00:00:00Z') : new Date();
+  if (inputDate) {
+    // For manual runs: use the specified day (00:00 UTC to next day 00:00 UTC)
+    const start = new Date(inputDate + 'T00:00:00Z');
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    return { start, end, targetDate: start };
+  }
+
+  // For scheduled runs: yesterday 07:00 UTC to today 07:00 UTC
+  const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
 
-  // Set times to 07:00 UTC
   const start = new Date(yesterday);
   start.setUTCHours(7, 0, 0, 0);
 
