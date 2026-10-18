@@ -11,7 +11,7 @@ import { setChannelSetting, sendBoostRequest, getChannelInfo, createReactionTrig
 import { addChangelogEntry, publishChangelog, generateDailySummary } from '../lib/changelog.js';
 import { setOpenaiApiKey } from '../lib/openai.js';
 import { sendRichMessage, formatId } from '../lib/message.js';
-import { channelSettings } from '../schema.js';
+import { channelSettings, dailyPosts } from '../schema.js';
 
 export default async function (message, ctx) {
   const chatId = message.chat.id;
@@ -47,6 +47,17 @@ async function handleCommand(command, chatId, user, message) {
   console.log(`[CMD] ${cmd} from user ${user.telegramId} (@${user.username})`);
 
   try {
+    // Команда для очистки тестовых данных из daily_posts
+    if (cmd === '/clean_daily_posts') {
+      if (!isAdmin(user)) {
+        await api.sendMessage({ chat_id, text: '❌ Только для админов' });
+        return;
+      }
+      const result = await db.delete(dailyPosts).run();
+      await api.sendMessage({ chat_id, text: `✅ Удалено ${result.rowsAffected} записей из daily_posts` });
+      return;
+    }
+
     switch (cmd) {
     case '/start':
       await api.sendMessage({
