@@ -1,8 +1,8 @@
 import { db } from 'sdk';
 import { eq, desc } from 'sdk/db';
-import { api } from 'sdk';
 import { changelog, channelSettings } from '../schema.js';
 import { generateChangelogSummary } from './openai.js';
+import { sendRichMessage, escapeMd } from './message.js';
 
 const CATEGORY_EMOJIS = {
   feature: '✨',
@@ -48,7 +48,7 @@ export async function publishChangelog(channelId) {
   let text = '📝 Changelog\n\n';
   
   for (const [date, entries] of Object.entries(grouped)) {
-    text += `📅 ${date}\n\n`;
+    text += `📅 ${escapeMd(date)}\n\n`;
     
     const byCategory = {};
     for (const entry of entries) {
@@ -60,15 +60,15 @@ export async function publishChangelog(channelId) {
     
     for (const [category, changes] of Object.entries(byCategory)) {
       const emoji = CATEGORY_EMOJIS[category] || '📌';
-      text += `${emoji} ${category.charAt(0).toUpperCase() + category.slice(1)}:\n`;
+      text += `${emoji} ${escapeMd(category.charAt(0).toUpperCase() + category.slice(1))}:\n`;
       for (const change of changes) {
-        text += `  • ${change}\n`;
+        text += `  • ${escapeMd(change)}\n`;
       }
       text += '\n';
     }
   }
   
-  await api.sendMessage({ chat_id: channelId, text });
+  await sendRichMessage(channelId, text);
   
   for (const entry of unpublished) {
     await db.update(changelog)

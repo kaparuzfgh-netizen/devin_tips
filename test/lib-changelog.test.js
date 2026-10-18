@@ -72,6 +72,16 @@ describe('lib/changelog.js', () => {
     expect(updates).toHaveLength(2);
   });
 
+  it('publishChangelog escapes Markdown chars in entry fields', async () => {
+    __pushDb([
+      { id: 1, date: '2026-10-18', category: 'fix', changes: 'fixed a_b*c', published: false },
+    ]);
+    await publishChangelog(-100);
+    const sent = apiCalls.find((c) => c.method === 'sendMessage');
+    expect(sent.params.text).toContain('fixed a\\_b\\*c');
+    expect(sent.params.parse_mode).toBe('Markdown');
+  });
+
   it('autoPublishChangelog publishes to each configured changelogChannelId', async () => {
     __pushDb(
       [{ channelId: -100, changelogChannelId: -200 }],
