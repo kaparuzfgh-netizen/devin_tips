@@ -22,7 +22,7 @@ export default async function (callback_query, ctx) {
       return;
     }
 
-    const [action, date, draftMessageId] = data.split(':');
+    const [action, date] = data.split(':');
 
     // Get user
     const user = await (await import('../lib/auth.js')).getOrCreateUser(userId, callback_query.from.username);
@@ -72,12 +72,13 @@ export default async function (callback_query, ctx) {
     }
 
     if (action === 'pub') {
-      // Publish: copy message to channel
+      // Publish: send message text to channel
       try {
-        const result = await api.copyMessage({
+        const draftText = callback_query.message.text;
+
+        const result = await api.sendMessage({
           chat_id: channelId,
-          from_chat_id: callback_query.message.chat.id,
-          message_id: parseInt(draftMessageId),
+          text: draftText,
         });
 
         // Record in database
@@ -90,7 +91,7 @@ export default async function (callback_query, ctx) {
           })
           .run();
 
-        // Update buttons
+        // Update buttons on draft message
         await api.editMessageReplyMarkup({
           chat_id: callback_query.message.chat.id,
           message_id: callback_query.message.message_id,
