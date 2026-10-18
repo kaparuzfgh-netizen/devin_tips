@@ -10,6 +10,50 @@ export { db, __pushDb, __resetDb, dbCalls } from './sdk-db.js';
 export const apiCalls = [];
 let apiHandler = null;
 
+// Telegram-style validator for parse_mode 'HTML': allowed tags only, balanced
+// and properly nested, attributes restricted (href on <a>, class on
+// <code>/<span>), every '<' must open a valid tag, every '&' must start a
+// known entity (&lt; &gt; &amp; &quot;). Stray '>' is tolerated.
+const ALLOWED_TAGS = new Set([
+  'b', 'strong', 'i', 'em', 'u', 'ins', 's', 'strike', 'del',
+  'a', 'code', 'pre', 'blockquote', 'tg-spoiler', 'tg-emoji', 'span',
+]);
+const ATTR_TAGS = { a: new Set(['href']), code: new Set(['class']), span: new Set(['class']) };
+
+export function validateHtml(text) {
+  const s = String(text);
+  const stack = [];
+  let pos = 0;
+  while (pos < s.length) {
+    const ch = s[pos];
+    if (ch === '<') {
+      const m = s.slice(pos).match(/^<(\/?)([a-zA-Z-]+)((?:\s+[a-zA-Z-]+="[^"]*")*)>/);
+      if (!m) return false;
+      const [, closing, tagName, attrs] = m;
+      if (!ALLOWED_TAGS.has(tagName)) return false;
+      if (attrs.trim()) {
+        const allowed = ATTR_TAGS[tagName];
+        for (const am of attrs.trim().matchAll(/([a-zA-Z-]+)="[^"]*"/g)) {
+          if (!allowed || !allowed.has(am[1])) return false;
+        }
+      }
+      if (closing) {
+        if (stack.pop() !== tagName) return false;
+      } else {
+        stack.push(tagName);
+      }
+      pos += m[0].length;
+    } else if (ch === '&') {
+      const m = s.slice(pos).match(/^&(lt|gt|amp|quot);/);
+      if (!m) return false;
+      pos += m[0].length;
+    } else {
+      pos += 1;
+    }
+  }
+  return stack.length === 0;
+}
+
 export function __onApi(fn) {
   apiHandler = fn;
 }
@@ -23,7 +67,16 @@ export const api = new Proxy({}, {
   get(target, method) {
     if (method === 'then' || typeof method === 'symbol') return undefined;
     return async (params) => {
-      apiCalls.push({ method, params });
+      const call = { method, params };
+      apiCalls.push(call);
+      if (
+        method === 'sendMessage'
+        && params?.parse_mode === 'HTML'
+        && !validateHtml(params.text)
+      ) {
+        call.invalidHtml = true;
+        throw new BotApiError("Bad Request: can't parse entities", { code: 400, method: 'sendMessage' });
+      }
       if (apiHandler) return apiHandler(method, params);
       return {};
     };

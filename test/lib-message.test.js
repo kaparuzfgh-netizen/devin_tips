@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { sendRichMessage, escapeMd, formatId, formatCode } from '../tgcloud/lib/message.js';
+import { html, b, raw } from '../tgcloud/lib/format.js';
 import { apiCalls, __onApi, __resetApi, BotApiError } from './mocks/sdk.js';
 
 beforeEach(__resetApi);
@@ -86,6 +87,38 @@ describe('lib/message.js', () => {
     await expect(sendRichMessage(1, 'a_b')).rejects.toThrow("can't parse entities");
     expect(apiCalls).toHaveLength(2);
     expect(apiCalls[1].params.parse_mode).toBeUndefined();
+  });
+
+  it('sendRichMessage sends Html content with parse_mode HTML', async () => {
+    await sendRichMessage(1, html`hi ${b('there')}`);
+    expect(apiCalls).toHaveLength(1);
+    expect(apiCalls[0].params).toMatchObject({
+      chat_id: 1,
+      text: 'hi <b>there</b>',
+      parse_mode: 'HTML',
+    });
+  });
+
+  it('sendRichMessage retries Html content with stripped plain text on 400 parse entities', async () => {
+    let calls = 0;
+    __onApi(() => {
+      calls += 1;
+      if (calls === 1) throw new BotApiError("can't parse entities", { code: 400 });
+      return { message_id: 3 };
+    });
+    const r = await sendRichMessage(1, html`hi ${b('there')} &lt;x&gt;`);
+    expect(r).toEqual({ message_id: 3 });
+    expect(apiCalls).toHaveLength(2);
+    expect(apiCalls[0].params.parse_mode).toBe('HTML');
+    expect(apiCalls[1].params.parse_mode).toBeUndefined();
+    expect(apiCalls[1].params.text).toBe('hi there <x>');
+  });
+
+  it('mock marks invalidHtml and rejects invalid HTML with 400', async () => {
+    await sendRichMessage(1, raw('<b>oops')); // fallback recovers the send
+    expect(apiCalls[0].invalidHtml).toBe(true);
+    expect(apiCalls[1].params.parse_mode).toBeUndefined();
+    __resetApi(); // intentional violation: clear the flag before the setup guard
   });
 });
 
