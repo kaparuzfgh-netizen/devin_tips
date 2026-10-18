@@ -77,6 +77,18 @@ describe('handlers/callback_query.js pub flow', () => {
     expect(sent.params.parse_mode).toBe('HTML');
   });
 
+  it('publishes a dated draft as header, escaped body, footer and tags', async () => {
+    __pushDb(adminUser, [{ channelId: -100 }], null);
+    const q = cbq('pub:2026-10-18');
+    q.message.text = 'Что нового за 2026-10-18\n\nbody with <b>markup';
+    await handler(q, {});
+    const t = apiCalls.find((c) => c.method === 'sendMessage').params.text;
+    expect(t).toContain('📝 <b>Что нового · 2026-10-18</b>');
+    expect(t).toContain('body with &lt;b&gt;markup');
+    expect(t).toContain('<i>🐱 ВайбКот · @devin_tips</i>');
+    expect(t).toContain('#changelog #devin');
+  });
+
   it('reports an API failure to the admin', async () => {
     __pushDb(adminUser, [{ channelId: -100 }], null);
     __onApi((method) => {

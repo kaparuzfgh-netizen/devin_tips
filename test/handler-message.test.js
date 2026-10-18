@@ -75,6 +75,12 @@ describe('handlers/message.js basics', () => {
     expect(lastSend().text).toContain('code [name]');
   });
 
+  it('/start ends with the brand footer', async () => {
+    __pushDb(plainUser);
+    await handler(msg('/start'), {});
+    expect(lastSend().text).toContain('<i>🐱 ВайбКот · @devin_tips</i>');
+  });
+
   it('/start includes the admin command block for admins', async () => {
     __pushDb(adminUser);
     await handler(msg('/start', { userId: 40576673, username: 'kaparuz' }), {});
@@ -218,6 +224,13 @@ describe('handlers/message.js content commands', () => {
     __pushDb(plainUser, null);
     await handler(msg('/code no_pe*x'), {});
     expect(lastSend().text).toContain('no_pe*x');
+    expect(lastSend().parse_mode).toBe('HTML');
+  });
+
+  it('/code shows the snippet inside an escaped <pre><code> block', async () => {
+    __pushDb(plainUser, { name: 'x', description: null, code: 'a<b>&c', filePath: 'f.js', language: 'js' });
+    await handler(msg('/code x'), {});
+    expect(lastSend().text).toContain('<pre><code class="language-js">a&lt;b&gt;&amp;c</code></pre>');
     expect(lastSend().parse_mode).toBe('HTML');
   });
 

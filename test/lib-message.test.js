@@ -1,32 +1,38 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { sendRichMessage, escapeMd, formatId, formatCode } from '../tgcloud/lib/message.js';
-import { html, b, raw } from '../tgcloud/lib/format.js';
+import { sendRichMessage, formatId, formatCode } from '../tgcloud/lib/message.js';
+import { esc, html, b, raw } from '../tgcloud/lib/format.js';
 import { apiCalls, __onApi, __resetApi, BotApiError } from './mocks/sdk.js';
 
 beforeEach(__resetApi);
 
 describe('lib/message.js', () => {
-  it('formatId wraps value in backticks', () => {
-    expect(formatId(40576673)).toBe('`40576673`');
+  it('formatId wraps value in <code>', () => {
+    expect(String(formatId(40576673))).toBe('<code>40576673</code>');
   });
 
   it('formatCode without language', () => {
-    expect(formatCode('x')).toBe('```\nx\n```');
+    expect(String(formatCode('x'))).toBe('<pre><code>x</code></pre>');
   });
 
   it('formatCode with language', () => {
-    expect(formatCode('const a = 1;', 'js')).toBe('```js\nconst a = 1;\n```');
+    expect(String(formatCode('const a = 1;', 'js'))).toBe('<pre><code class="language-js">const a = 1;</code></pre>');
   });
 
-  it('sendRichMessage sends with Markdown parse_mode', async () => {
+  it('sendRichMessage sends with HTML parse_mode', async () => {
     await sendRichMessage(123, 'hi');
     expect(apiCalls).toHaveLength(1);
     expect(apiCalls[0].method).toBe('sendMessage');
     expect(apiCalls[0].params).toMatchObject({
       chat_id: 123,
       text: 'hi',
-      parse_mode: 'Markdown',
+      parse_mode: 'HTML',
     });
+  });
+
+  it('sendRichMessage escapes a plain string with special chars', async () => {
+    await sendRichMessage(1, '<b>&_*');
+    expect(apiCalls[0].params.text).toBe('&lt;b&gt;&amp;_*');
+    expect(apiCalls[0].params.parse_mode).toBe('HTML');
   });
 
   it('sendRichMessage merges extra options', async () => {
@@ -51,7 +57,7 @@ describe('lib/message.js', () => {
     const r = await sendRichMessage(1, 'a_b*c');
     expect(r).toEqual({ message_id: 9 });
     expect(apiCalls).toHaveLength(2);
-    expect(apiCalls[0].params.parse_mode).toBe('Markdown');
+    expect(apiCalls[0].params.parse_mode).toBe('HTML');
     expect(apiCalls[0].params.text).toBe('a_b*c');
     expect(apiCalls[1].params.parse_mode).toBeUndefined();
     expect(apiCalls[1].params.text).toBe('a_b*c');
@@ -122,19 +128,19 @@ describe('lib/message.js', () => {
   });
 });
 
-describe('escapeMd', () => {
-  it('escapes each of the four Markdown special chars', () => {
-    expect(escapeMd('a_b*c`d[e')).toBe('a\\_b\\*c\\`d\\[e');
+describe('esc', () => {
+  it('escapes the HTML special chars', () => {
+    expect(esc('a<b>&"c"')).toBe('a&lt;b&gt;&amp;"c"');
   });
 
   it('handles null, undefined and numbers', () => {
-    expect(escapeMd(null)).toBe('');
-    expect(escapeMd(undefined)).toBe('');
-    expect(escapeMd(42)).toBe('42');
+    expect(esc(null)).toBe('');
+    expect(esc(undefined)).toBe('');
+    expect(esc(42)).toBe('42');
   });
 
   it('leaves other characters untouched', () => {
-    expect(escapeMd('a-b.c)d]e{f}/g')).toBe('a-b.c)d]e{f}/g');
-    expect(escapeMd('')).toBe('');
+    expect(esc('a_b*c`d[e')).toBe('a_b*c`d[e');
+    expect(esc('')).toBe('');
   });
 });

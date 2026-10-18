@@ -1,38 +1,18 @@
 import { api } from 'sdk';
-import { Html, stripHtml } from './format.js';
+import { Html, esc, stripHtml } from './format.js';
 
-// Escape legacy-Markdown special chars in dynamic text (user input, DB
-// values, error messages) before it goes through sendRichMessage.
-export function escapeMd(text) {
-  return String(text ?? '').replace(/([_*`[])/g, '\\$1');
-}
+export { formatId, formatCode } from './format.js';
 
 // Helper for rich messages with monospace for IDs/code.
-// Dual mode during the HTML migration: Html content is sent with
-// parse_mode 'HTML'; plain strings keep the legacy Markdown behavior.
+// Html content is sent as parse_mode 'HTML'; any other value is escaped and
+// sent as HTML text — safe by default. On a 400 "can't parse entities" the
+// message is retried once as stripped plain text.
 export async function sendRichMessage(chatId, content, options = {}) {
-  if (content instanceof Html) {
-    const opts = {
-      chat_id: chatId,
-      text: String(content),
-      parse_mode: 'HTML',
-      ...options,
-    };
-    try {
-      return await api.sendMessage(opts);
-    } catch (e) {
-      const description = e?.description || e?.message || '';
-      if (e?.code === 400 && /parse entities/i.test(description)) {
-        const { parse_mode, ...plain } = opts;
-        return await api.sendMessage({ ...plain, text: stripHtml(content) });
-      }
-      throw e;
-    }
-  }
+  const safe = content instanceof Html ? content : new Html(esc(String(content)));
   const opts = {
     chat_id: chatId,
-    text: content,
-    parse_mode: 'Markdown',
+    text: String(safe),
+    parse_mode: 'HTML',
     ...options,
   };
   try {
@@ -41,21 +21,8 @@ export async function sendRichMessage(chatId, content, options = {}) {
     const description = e?.description || e?.message || '';
     if (e?.code === 400 && /parse entities/i.test(description)) {
       const { parse_mode, ...plain } = opts;
-      return await api.sendMessage(plain);
+      return await api.sendMessage({ ...plain, text: stripHtml(safe) });
     }
     throw e;
   }
-}
-
-// Format ID for easy copying (monospace)
-export function formatId(id) {
-  return `\`${id}\``;
-}
-
-// Format code block for easy copying
-export function formatCode(code, language = '') {
-  if (language) {
-    return `\`\`\`${language}\n${code}\n\`\`\``;
-  }
-  return `\`\`\`\n${code}\n\`\`\``;
 }
