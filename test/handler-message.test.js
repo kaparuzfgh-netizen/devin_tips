@@ -66,6 +66,43 @@ describe('handlers/message.js basics', () => {
     await handler(msg('расскажи про devin'), {});
     expect(lastSend().text).toContain('Devin');
   });
+
+  it('/start escapes underscores in command names for a regular user', async () => {
+    __pushDb(plainUser);
+    await handler(msg('/start'), {});
+    expect(lastSend().text).toContain('/get\\_channel\\_id');
+    expect(lastSend().text).toContain('/my\\_channels');
+    expect(lastSend().text).toContain('code \\[name]');
+  });
+
+  it('/start escapes underscores in the admin command block', async () => {
+    __pushDb(adminUser);
+    await handler(msg('/start', { userId: 40576673, username: 'kaparuz' }), {});
+    const t = lastSend().text;
+    for (const cmd of ['/publish\\_changelog', '/channel\\_config', '/boost\\_request', '/reaction\\_trigger', '/set\\_openai\\_key', '/ai\\_summary']) {
+      expect(t).toContain(cmd);
+    }
+  });
+
+  it('/help escapes underscores and brackets in command names', async () => {
+    __pushDb(plainUser);
+    await handler(msg('/help'), {});
+    expect(lastSend().text).toContain('code\\_example');
+    expect(lastSend().text).toContain('code \\[name]');
+  });
+
+  // Regression lock: any `_` in a sent static text must be backslash-escaped
+  // (legacy Markdown eats unescaped underscores — see KI-005).
+  it('static /start and /help texts contain no unescaped underscores', async () => {
+    for (const [cmd, user] of [['/start', plainUser], ['/start', adminUser], ['/help', plainUser]]) {
+      __resetDb();
+      __resetApi();
+      __onApi((method) => (method === 'getMe' ? { username: 'devin_tips_bot' } : {}));
+      __pushDb(user);
+      await handler(msg(cmd, { userId: user.telegramId, username: user.username }), {});
+      expect(lastSend().text).not.toMatch(/(?<!\\)_/);
+    }
+  });
 });
 
 // Regression lock for KI-002 (audit B13): every admin-command branch used the
@@ -101,6 +138,32 @@ describe('handlers/message.js admin guard', () => {
     await handler(msg('/clean_daily_posts', { userId: 40576673, username: 'kaparuz' }), {});
     expect(dbCalls.some((s) => s[0].op === 'delete' && s[0].table === 'daily_posts')).toBe(true);
     expect(lastSend().text).toContain('Удалено 3');
+  });
+
+  it('/clean_daily_posts escapes underscores in the result text', async () => {
+    __pushDb(adminUser, { rowsAffected: 3 });
+    await handler(msg('/clean_daily_posts', { userId: 40576673, username: 'kaparuz' }), {});
+    expect(lastSend().text).toContain('daily\\_posts');
+  });
+
+  it('/channel_config usage message escapes underscores', async () => {
+    __pushDb(adminUser);
+    await handler(msg('/channel_config', { userId: 40576673, username: 'kaparuz' }), {});
+    expect(lastSend().text).toContain('channel\\_config');
+  });
+
+  it('/reaction_trigger usage message escapes underscores', async () => {
+    __pushDb(adminUser);
+    await handler(msg('/reaction_trigger', { userId: 40576673, username: 'kaparuz' }), {});
+    expect(lastSend().text).toContain('reaction\\_trigger');
+    expect(lastSend().text).toContain('post\\_id');
+  });
+
+  it('/set_openai_key usage message escapes underscores', async () => {
+    __pushDb(adminUser);
+    await handler(msg('/set_openai_key', { userId: 40576673, username: 'kaparuz' }), {});
+    expect(lastSend().text).toContain('set\\_openai\\_key');
+    expect(lastSend().text).toContain('gsk\\_');
   });
 
   // BUG (see audit B7): /channel_config passes chatId — the admin's private

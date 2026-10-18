@@ -54,7 +54,7 @@ async function handleCommand(command, chatId, user, message) {
         return;
       }
       const result = await db.delete(dailyPosts).run();
-      await sendRichMessage(chatId, `✅ Удалено ${escapeMd(result.rowsAffected)} записей из daily_posts`);
+      await sendRichMessage(chatId, escapeMd(`✅ Удалено ${result.rowsAffected} записей из daily_posts`));
       return;
     }
 
@@ -62,36 +62,40 @@ async function handleCommand(command, chatId, user, message) {
     case '/start':
       await sendRichMessage(
         chatId,
-        '👋 Привет! Я Devin Tips Bot - бот о Devin AI!\n\n' +
-          'Я помогу тебе узнать о возможностях Devin, покажу примеры кода и отвечу на вопросы.\n\n' +
-          '📚 Команды:\n' +
-          '/help - Показать справку\n' +
-          '/posts - Показать последние посты\n' +
-          '/code [name] - Показать код бота\n' +
-          '/listcode - Список всех модулей\n' +
-          '/ask <вопрос> - Задать вопрос\n' +
-          '/get_channel_id @username - Получить ID канала\n' +
-          '/my_channels - Справка по каналам\n' +
-          `\n${isAdmin(user) ? '🔧 Админ-команды:\n/changelog <категория>: <изменения> - Добавить запись в changelog\n/publish_changelog <channel_id> - Опубликовать changelog\n/channel_config <key> <value> - Настройка канала\n/boost_request <level> - Запрос бустов\n/reaction_trigger <post_id> <count> <action> - Создать триггер реакций\n/set_openai_key <key> - Установить OpenAI API ключ\n/ai_summary - Сгенерировать AI summary' : ''}`,
+        escapeMd(
+          '👋 Привет! Я Devin Tips Bot - бот о Devin AI!\n\n' +
+            'Я помогу тебе узнать о возможностях Devin, покажу примеры кода и отвечу на вопросы.\n\n' +
+            '📚 Команды:\n' +
+            '/help - Показать справку\n' +
+            '/posts - Показать последние посты\n' +
+            '/code [name] - Показать код бота\n' +
+            '/listcode - Список всех модулей\n' +
+            '/ask <вопрос> - Задать вопрос\n' +
+            '/get_channel_id @username - Получить ID канала\n' +
+            '/my_channels - Справка по каналам\n' +
+            `\n${isAdmin(user) ? '🔧 Админ-команды:\n/changelog <категория>: <изменения> - Добавить запись в changelog\n/publish_changelog <channel_id> - Опубликовать changelog\n/channel_config <key> <value> - Настройка канала\n/boost_request <level> - Запрос бустов\n/reaction_trigger <post_id> <count> <action> - Создать триггер реакций\n/set_openai_key <key> - Установить OpenAI API ключ\n/ai_summary - Сгенерировать AI summary' : ''}`,
+        ),
       );
       break;
 
     case '/help':
       await sendRichMessage(
         chatId,
-        '📖 Справка по Devin Tips Bot\n\n' +
-          '📚 Команды:\n' +
-          '/start - Начать работу\n' +
-          '/help - Эта справка\n' +
-          '/posts - Показать последние посты\n' +
-          '/code [name] - Показать код бота\n' +
-          '/listcode - Список всех модулей\n' +
-          '/ask <вопрос> - Задать вопрос о Devin\n\n' +
-          'Типы постов:\n' +
-          '• educational - Образовательные материалы\n' +
-          '• code_example - Примеры кода\n' +
-          '• qa - Вопросы и ответы\n' +
-          '• auto - Автоматический контент',
+        escapeMd(
+          '📖 Справка по Devin Tips Bot\n\n' +
+            '📚 Команды:\n' +
+            '/start - Начать работу\n' +
+            '/help - Эта справка\n' +
+            '/posts - Показать последние посты\n' +
+            '/code [name] - Показать код бота\n' +
+            '/listcode - Список всех модулей\n' +
+            '/ask <вопрос> - Задать вопрос о Devin\n\n' +
+            'Типы постов:\n' +
+            '• educational - Образовательные материалы\n' +
+            '• code_example - Примеры кода\n' +
+            '• qa - Вопросы и ответы\n' +
+            '• auto - Автоматический контент',
+        ),
       );
       break;
 
@@ -196,7 +200,7 @@ async function handleCommand(command, chatId, user, message) {
       }
       const configParts = args.split(' ');
       if (configParts.length < 2) {
-        await sendRichMessage(chatId, '❌ Использование: /channel_config <key> <value>\nКлючи: deleteServiceMessages, autoBoostRequest, targetBoostLevel, changelogChannelId');
+        await sendRichMessage(chatId, escapeMd('❌ Использование: /channel_config <key> <value>\nКлючи: deleteServiceMessages, autoBoostRequest, targetBoostLevel, changelogChannelId'));
         return;
       }
       const key = configParts[0];
@@ -225,7 +229,7 @@ async function handleCommand(command, chatId, user, message) {
       }
       const triggerParts = args.split(' ');
       if (triggerParts.length < 3) {
-        await sendRichMessage(chatId, '❌ Использование: /reaction_trigger <post_id> <count> <action>');
+        await sendRichMessage(chatId, escapeMd('❌ Использование: /reaction_trigger <post_id> <count> <action>'));
         return;
       }
       await createReactionTrigger(parseInt(triggerParts[0]), chatId, parseInt(triggerParts[1]), triggerParts[2]);
@@ -255,7 +259,7 @@ async function handleCommand(command, chatId, user, message) {
         return;
       }
       if (!args) {
-        await sendRichMessage(chatId, '❌ Укажи API ключ. Пример: /set_openai_key gsk_...');
+        await sendRichMessage(chatId, escapeMd('❌ Укажи API ключ. Пример: /set_openai_key gsk_...'));
         return;
       }
       await setOpenaiApiKey(args);
