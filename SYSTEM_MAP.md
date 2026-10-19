@@ -11,7 +11,7 @@
 
 ### Daily changelog (текущая цель, MVP)
 ```
-GitHub Actions cron 07:00 UTC (.github/workflows/daily-changelog.yml)
+GitHub Actions cron 16:17 UTC = 19:17 МСК (.github/workflows/daily-changelog.yml)
   → scripts/daily-changelog.js          [Core]
       → GitHub API: коммиты за сутки → фильтр (merge/docs:/chore:/[skip changelog])
       → Telegram Bot API: черновик админу с кнопками pub:/rej:
@@ -65,7 +65,7 @@ update message_reaction_count → handlers/message_reaction_count.js → lib/cha
 | `lib/github.js` | GitHub API (commits/releases/diff) | мёртвый код | fetch |
 | `lib/self.js` | Статичные сниппеты кода бота | мёртвый код | content |
 | `scripts/daily-changelog.js` | Сбор коммитов + черновик админу (job, не деплоится) | Core (KI-004/B9) | GitHub API, Bot API |
-| `.github/workflows/daily-changelog.yml` | cron 07:00 UTC + ручной запуск | Core (KI-004/B14) | scripts/ |
+| `.github/workflows/daily-changelog.yml` | cron 16:17 UTC (19:17 МСК) + ручной запуск | Core (KI-004/B14) | scripts/ |
 | `.github/workflows/check.yml` | Quality gate: npm run check на push/PR | — | — |
 | `test/` | Vitest + моки sdk (db/api/fetch), regression lock | — | tgcloud/, scripts/ |
 

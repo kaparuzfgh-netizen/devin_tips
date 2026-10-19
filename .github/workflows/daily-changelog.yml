@@ -2,8 +2,8 @@ name: Daily Changelog
 
 on:
   schedule:
-    # Runs daily at 07:00 UTC (12:00 Asia/Almaty)
-    - cron: '0 7 * * *'
+    # Runs daily at 16:17 UTC (19:17 Europe/Moscow); off the top of the hour to avoid GitHub cron delays
+    - cron: '17 16 * * *'
   workflow_dispatch:
     inputs:
       date:
