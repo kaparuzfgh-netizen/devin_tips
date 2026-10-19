@@ -1,0 +1,9 @@
+{
+  "workbench.editor.showTabs": "none",
+  "workbench.editor.enablePreview": false,
+  "workbench.editor.closeEmptyGroups": true,
+  "editor.minimap.enabled": false,
+  "explorer.autoReveal": false,
+  "files.autoSave": "afterDelay",
+  "files.autoSaveDelay": 2000
+}
