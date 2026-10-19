@@ -11,12 +11,18 @@ import { setChannelSetting, sendBoostRequest, getChannelInfo, createReactionTrig
 import { addChangelogEntry, publishChangelog, generateDailySummary } from '../lib/changelog.js';
 import { setOpenaiApiKey } from '../lib/openai.js';
 import { sendRichMessage } from '../lib/message.js';
+import { listedCommands } from '../lib/commands.js';
 import {
   html, header, section, list, footer,
   ok, fail, empty, unknown, info,
   formatId, formatCode,
 } from '../lib/format.js';
 import { channelSettings, dailyPosts } from '../schema.js';
+
+const commandLines = (scope) =>
+  listedCommands(scope)
+    .map((c) => `${c.cmd}${c.args ? ` ${c.args}` : ''} - ${c.desc}`)
+    .join('\n');
 
 export default async function (message, ctx) {
   const chatId = message.chat.id;
@@ -71,27 +77,9 @@ async function handleCommand(command, chatId, user, message) {
 
 ${'Привет! Я Devin Tips Bot - бот о Devin AI!\n\nЯ помогу тебе узнать о возможностях Devin, покажу примеры кода и отвечу на вопросы.'}
 
-${section(
-  '📚 Команды',
-  '/help - Показать справку\n' +
-    '/posts - Показать последние посты\n' +
-    '/code [name] - Показать код бота\n' +
-    '/listcode - Список всех модулей\n' +
-    '/ask <вопрос> - Задать вопрос\n' +
-    '/get_channel_id @username - Получить ID канала\n' +
-    '/my_channels - Справка по каналам',
-)}${isAdmin(user) ? html`
+${section('📚 Команды', commandLines('public'))}${isAdmin(user) ? html`
 
-${section(
-  '🔧 Админ-команды',
-  '/changelog <категория>: <изменения> - Добавить запись в changelog\n' +
-    '/publish_changelog <channel_id> - Опубликовать changelog\n' +
-    '/channel_config <key> <value> - Настройка канала\n' +
-    '/boost_request <level> - Запрос бустов\n' +
-    '/reaction_trigger <post_id> <count> <action> - Создать триггер реакций\n' +
-    '/set_openai_key <key> - Установить OpenAI API ключ\n' +
-    '/ai_summary - Сгенерировать AI summary',
-)}` : ''}
+${section('🔧 Админ-команды', commandLines('admin'))}` : ''}
 
 ${footer()}`,
       );
@@ -102,23 +90,9 @@ ${footer()}`,
         chatId,
         html`${header('📖', 'Справка по Devin Tips Bot')}
 
-${section(
-  '📚 Команды',
-  '/start - Начать работу\n' +
-    '/help - Эта справка\n' +
-    '/posts - Показать последние посты\n' +
-    '/code [name] - Показать код бота\n' +
-    '/listcode - Список всех модулей\n' +
-    '/ask <вопрос> - Задать вопрос о Devin',
-)}
+${section('📚 Команды', commandLines('public'))}${isAdmin(user) ? html`
 
-${section(
-  'Типы постов',
-  '• educational - Образовательные материалы\n' +
-    '• code_example - Примеры кода\n' +
-    '• qa - Вопросы и ответы\n' +
-    '• auto - Автоматический контент',
-)}
+${section('🔧 Админ-команды', commandLines('admin'))}` : ''}
 
 ${footer()}`,
       );

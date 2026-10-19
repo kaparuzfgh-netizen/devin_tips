@@ -67,12 +67,15 @@ describe('handlers/message.js basics', () => {
     expect(lastSend().text).toContain('Devin');
   });
 
-  it('/start sends command names unescaped for a regular user', async () => {
+  it('/start lists only working commands for a regular user', async () => {
     __pushDb(plainUser);
     await handler(msg('/start'), {});
-    expect(lastSend().text).toContain('/get_channel_id');
-    expect(lastSend().text).toContain('/my_channels');
-    expect(lastSend().text).toContain('code [name]');
+    const t = lastSend().text;
+    expect(t).toContain('/status');
+    expect(t).toContain('/get_channel_id');
+    for (const cmd of ['/posts', '/code', '/ask']) {
+      expect(t).not.toContain(cmd);
+    }
   });
 
   it('/start ends with the brand footer', async () => {
@@ -85,17 +88,22 @@ describe('handlers/message.js basics', () => {
     __pushDb(adminUser);
     await handler(msg('/start', { userId: 40576673, username: 'kaparuz' }), {});
     const t = lastSend().text;
-    for (const cmd of ['/publish_changelog', '/channel_config', '/boost_request', '/reaction_trigger', '/set_openai_key', '/ai_summary']) {
-      expect(t).toContain(cmd);
+    expect(t).toContain('/my_channels');
+    expect(t).toContain('/clean_daily_posts');
+    for (const cmd of ['/publish_changelog', '/set_openai_key', '/ai_summary']) {
+      expect(t).not.toContain(cmd);
     }
   });
 
-  it('/help keeps command names readable and escapes placeholders', async () => {
+  // Note: the angle-bracket placeholder assertion was dropped — no listed
+  // command carries args anymore (args live on hidden commands only).
+  it('/help lists only working commands and drops post types', async () => {
     __pushDb(plainUser);
     await handler(msg('/help'), {});
-    expect(lastSend().text).toContain('code_example');
-    expect(lastSend().text).toContain('code [name]');
-    expect(lastSend().text).toContain('&lt;вопрос&gt;');
+    const t = lastSend().text;
+    expect(t).toContain('/status');
+    expect(t).not.toContain('code_example');
+    expect(t).not.toContain('Типы постов');
   });
 
   // Regression lock: static texts go out as HTML now — underscores stay as-is
