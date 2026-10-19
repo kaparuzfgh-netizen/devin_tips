@@ -69,8 +69,15 @@ export default async function (callback_query, ctx) {
     const channelId = channels[0].channelId;
     console.log(`[CALLBACK] Channel: id=${channelId}`);
 
+    // Test drafts ([ТЕСТ] prefix) bypass the one-per-date check and are not
+    // recorded, so a real publication for the same date stays possible.
+    const isTestDraft = /^\[ТЕСТ\]/.test(callback_query.message?.text || '');
+    console.log(`[CALLBACK] Draft: test=${isTestDraft}`);
+
     // Check if already processed
-    const existing = await db.select().from(dailyPosts).where(eq(dailyPosts.date, date)).get();
+    const existing = isTestDraft
+      ? null
+      : await db.select().from(dailyPosts).where(eq(dailyPosts.date, date)).get();
     if (existing) {
       console.log(`[CALLBACK] Then: already processed, status=${existing.status}`);
       try {
@@ -95,7 +102,7 @@ export default async function (callback_query, ctx) {
       }
       return;
     }
-    console.log('[CALLBACK] Date not processed yet, proceeding');
+    console.log(isTestDraft ? '[CALLBACK] Test draft, skipping processed check' : '[CALLBACK] Date not processed yet, proceeding');
 
     if (action === 'pub') {
       // Publish: send message text to channel
@@ -106,16 +113,20 @@ export default async function (callback_query, ctx) {
         const result = await sendRichMessage(channelId, draftPost(draftText, date));
         console.log(`[CALLBACK] Then: message sent to channel, id=${result.message_id}`);
 
-        // Record in database
-        await db.insert(dailyPosts)
-          .values({
-            date,
-            status: 'published',
-            channelMessageId: result.message_id,
-            decidedAt: new Date().getTime() / 1000,
-          })
-          .run();
-        console.log('[CALLBACK] Then: recorded to DB');
+        // Record in database (test drafts stay unrecorded on purpose)
+        if (!isTestDraft) {
+          await db.insert(dailyPosts)
+            .values({
+              date,
+              status: 'published',
+              channelMessageId: result.message_id,
+              decidedAt: new Date().getTime() / 1000,
+            })
+            .run();
+          console.log('[CALLBACK] Then: recorded to DB');
+        } else {
+          console.log('[CALLBACK] Then: test draft, not recording to DB');
+        }
 
         // Update buttons on draft message
         try {
@@ -132,7 +143,7 @@ export default async function (callback_query, ctx) {
         try {
           await api.answerCallbackQuery({
             callback_query_id: callback_query.id,
-            text: '✅ Опубликовано',
+            text: isTestDraft ? '✅ Опубликовано (тест)' : '✅ Опубликовано',
           });
         } catch (e) {
           console.log('[CALLBACK] Failed to answer callback query:', e.message);
@@ -151,16 +162,20 @@ export default async function (callback_query, ctx) {
         });
       }
     } else if (action === 'rej') {
-      // Reject: record in database
+      // Reject: record in database (test drafts stay unrecorded on purpose)
       console.log('[CALLBACK] When: rejecting');
-      await db.insert(dailyPosts)
-        .values({
-          date,
-          status: 'rejected',
-          decidedAt: new Date().getTime() / 1000,
-        })
-        .run();
-      console.log('[CALLBACK] Then: recorded as rejected');
+      if (!isTestDraft) {
+        await db.insert(dailyPosts)
+          .values({
+            date,
+            status: 'rejected',
+            decidedAt: new Date().getTime() / 1000,
+          })
+          .run();
+        console.log('[CALLBACK] Then: recorded as rejected');
+      } else {
+        console.log('[CALLBACK] Then: test draft, not recording to DB');
+      }
 
       // Remove buttons
       try {
@@ -177,7 +192,7 @@ export default async function (callback_query, ctx) {
       try {
         await api.answerCallbackQuery({
           callback_query_id: callback_query.id,
-          text: '❌ Отклонено',
+          text: isTestDraft ? '❌ Отклонено (тест)' : '❌ Отклонено',
         });
       } catch (e) {
         console.log('[CALLBACK] Failed to answer callback query:', e.message);

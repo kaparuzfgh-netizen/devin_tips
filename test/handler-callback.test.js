@@ -130,3 +130,40 @@ describe('handlers/callback_query.js idempotency', () => {
     expect(lastAnswer().text).toContain('Уже отклонено');
   });
 });
+
+describe('handlers/callback_query.js test drafts', () => {
+  it('publishes a [ТЕСТ] draft even when the date is already processed', async () => {
+    __pushDb(adminUser, [{ channelId: -100 }], { status: 'published' });
+    const q = cbq('pub:2026-10-18');
+    q.message.text = '[ТЕСТ] Что нового за 2026-10-18\n\nтестовое тело';
+    await handler(q, {});
+
+    const sent = apiCalls.find((c) => c.method === 'sendMessage');
+    expect(sent).toBeTruthy();
+    expect(sent.params.chat_id).toBe(-100);
+    expect(sent.params.text).toContain('[ТЕСТ]');
+    expect(sent.params.text).toContain('тестовое тело');
+    expect(dbCalls.some((s) => s[0].op === 'insert' && s[0].table === 'daily_posts')).toBe(false);
+    expect(lastAnswer().text).toContain('Опубликовано (тест)');
+    expect(apiCalls.some((c) => c.method === 'editMessageText' && c.params.message_id === 7)).toBe(true);
+  });
+
+  it('rejects a [ТЕСТ] draft without inserting into daily_posts', async () => {
+    __pushDb(adminUser, [{ channelId: -100 }], { status: 'published' });
+    const q = cbq('rej:2026-10-18');
+    q.message.text = '[ТЕСТ] Что нового за 2026-10-18';
+    await handler(q, {});
+    expect(dbCalls.some((s) => s[0].op === 'insert' && s[0].table === 'daily_posts')).toBe(false);
+    expect(lastAnswer().text).toContain('Отклонено (тест)');
+    expect(apiCalls.some((c) => c.method === 'editMessageText')).toBe(true);
+    expect(apiCalls.some((c) => c.method === 'sendMessage')).toBe(false);
+  });
+
+  it('still blocks a non-test draft when the date is already processed', async () => {
+    __pushDb(adminUser, [{ channelId: -100 }], { status: 'published' });
+    await handler(cbq('pub:2026-10-18'), {}); // 'DRAFT TEXT' — no [ТЕСТ] prefix
+    expect(lastAnswer().text).toContain('Уже опубликовано');
+    expect(apiCalls.some((c) => c.method === 'sendMessage' && c.params.chat_id === -100)).toBe(false);
+    expect(dbCalls.some((s) => s[0].op === 'insert')).toBe(false);
+  });
+});
