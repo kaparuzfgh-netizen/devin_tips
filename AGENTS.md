@@ -92,6 +92,14 @@ Telegram Serverless (JavaScript, встроенный SQLite). Админ: @kapa
   `api.sendMessage` запрещён. Оформление — только фикстуры `lib/format.js` (`html`-шаблон
   экранирует подстановки сам); своего HTML-оформления в хендлерах не писать.
 
+## Команды бота
+- Список команд — только в `tgcloud/lib/commands.js` (listed/hidden). `/start`, `/help` и текст для
+  BotFather (`botfatherCommands()`) строятся оттуда; тест не даёт добавить или убрать `case '/x'`
+  в `handlers/message.js` без правки реестра.
+- Рекламировать (listed) только работающие команды; сломанные и заменённые — `hidden` с причиной.
+- Появилась или пропала публичная команда — сообщи владельцу обновить Commands в BotFather
+  (настройки BotFather описываются в `docs/botfather.md`, когда они актуальны).
+
 ## Документация
 - Справочники: `README.md` (для людей), `SYSTEM_MAP.md` (карта кода, Frozen/Core),
   `TASK_TRACKER.md` (задачи и статусы), `docs/` (VISION, KNOWN_ISSUES, tgcloud-sdk,
