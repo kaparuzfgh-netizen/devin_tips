@@ -151,6 +151,6 @@ Markdown заменён на `parse_mode: HTML` во всём `tgcloud/` (KI-005
   Тест `it.fails` в `test/lib-channel.test.js`.
 - **B12** `getChangelog(date)` использует `.get()` — вернёт одну строку, хотя записей
   на дату может быть несколько. Тест `it.fails` в `test/lib-changelog.test.js`.
-- **B14** `.github/workflows/daily-changelog.yml` без блока `permissions:` — GITHUB_TOKEN
-  получает широкие дефолтные права (правило требует минимальные).
+- **B14** FIXED (коммит `9012b6a`): в `.github/workflows/daily-changelog.yml` есть `permissions: contents: read`;
+  запись в репозиторий скрипту не нужна.
 - **B15** Мёртвый код: `lib/github.js`, `lib/self.js` нигде не импортируются.
