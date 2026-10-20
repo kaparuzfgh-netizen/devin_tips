@@ -19,8 +19,8 @@ GitHub Actions cron 16:17 UTC = 19:17 МСК (.github/workflows/daily-changelog.
       → pub: sendRichMessage в канал + insert daily_posts(status='published')
       → rej: insert daily_posts(status='rejected')
 ```
-Запасной текст — простой список коммитов. Groq-вызова в скрипте пока нет (T5=TODO),
-см. KI-003.
+Текст черновика — Groq (`GROQ_API_KEY`, T5); при любой ошибке и без ключа —
+запасной простой список коммитов. Старый `lib/openai.js` не задействован, см. KI-003.
 
 ### Привязка канала
 ```
@@ -64,7 +64,7 @@ update message_reaction_count → handlers/message_reaction_count.js → lib/cha
 | `lib/openai.js` | AI-summary через OpenAI-совместимый endpoint | — (KI-003) | schema, fetch |
 | `lib/github.js` | GitHub API (commits/releases/diff) | мёртвый код | fetch |
 | `lib/self.js` | Статичные сниппеты кода бота | мёртвый код | content |
-| `scripts/daily-changelog.js` | Сбор коммитов + черновик админу (job, не деплоится) | Core (KI-004/B9) | GitHub API, Bot API |
+| `scripts/daily-changelog.js` | Сбор коммитов + черновик админу: текст от Groq, при сбое — простой список (job, не деплоится) | Core | GitHub API, Groq API, Bot API |
 | `.github/workflows/daily-changelog.yml` | cron 16:17 UTC (19:17 МСК) + ручной запуск | Core | scripts/ |
 | `.github/workflows/check.yml` | Quality gate: npm run check на push/PR | — | — |
 | `test/` | Vitest + моки sdk (db/api/fetch), regression lock | — | tgcloud/, scripts/ |

@@ -239,3 +239,141 @@ describe('daily-changelog.js main flow', () => {
     expect(calls).toHaveLength(2);
   });
 });
+
+// Same loader as loadScript, but with a console that records calls — needed to
+// assert the Groq key never reaches the logs.
+function loadScriptCapturingConsole(env, fetchImpl) {
+  const logs = [];
+  const errors = [];
+  const proc = { env, exit: () => { throw new Error('process.exit called'); } };
+  const cons = {
+    log: (...args) => logs.push(args.join(' ')),
+    error: (...args) => errors.push(args.join(' ')),
+    warn() {}, info() {},
+  };
+  const factory = new Function(
+    'process', 'fetch', 'console',
+    `${SRC.replace(/main\(\);\s*$/, '')}
+     return { getDateWindow, filterCommits, generateChangelog, sendTelegramDraft, main };`,
+  );
+  return { ...factory(proc, fetchImpl, cons), logs, errors };
+}
+
+describe('daily-changelog.js Groq AI draft (T5)', () => {
+  const GROQ_KEY = 'groq-secret-for-test';
+  const AI_ENV = { ...ENV, GROQ_API_KEY: GROQ_KEY, INPUT_DATE: '2026-10-19' };
+  const GROQ_OK_BODY = { choices: [{ message: { content: '— Добавили X' } }] };
+  const FALLBACK_TEXT = 'Что нового за 2026-10-19\n\n— feat: x';
+
+  it('uses the Groq text when the API responds 200', async () => {
+    const calls = [];
+    const { main } = loadScript(AI_ENV, async (url, opts) => {
+      calls.push({ url, opts });
+      if (url.includes('api.github.com')) return okJson([commit('feat: x')]);
+      if (url.includes('api.groq.com')) return okJson(GROQ_OK_BODY);
+      return okJson({ ok: true });
+    });
+    await main();
+    expect(calls).toHaveLength(3);
+    expect(calls[0].url).toContain('api.github.com');
+    expect(calls[1].url).toContain('api.groq.com');
+    expect(calls[1].opts.headers.Authorization).toBe(`Bearer ${GROQ_KEY}`);
+    expect(calls[2].url).toContain('api.telegram.org');
+    const body = JSON.parse(calls[2].opts.body);
+    expect(body.text).toContain('Что нового за 2026-10-19');
+    expect(body.text).toContain('— Добавили X');
+  });
+
+  it('falls back to the plain commit list when Groq returns !ok', async () => {
+    const calls = [];
+    const { main } = loadScript(AI_ENV, async (url, opts) => {
+      calls.push({ url, opts });
+      if (url.includes('api.github.com')) return okJson([commit('feat: x')]);
+      if (url.includes('api.groq.com')) {
+        return { ok: false, status: 500, statusText: 'Internal Server Error', json: async () => ({}) };
+      }
+      return okJson({ ok: true });
+    });
+    await main();
+    expect(calls).toHaveLength(3);
+    const body = JSON.parse(calls[2].opts.body);
+    expect(body.text).toBe(FALLBACK_TEXT);
+  });
+
+  it('falls back to the plain commit list when the Groq fetch throws', async () => {
+    const calls = [];
+    const { main } = loadScript(AI_ENV, async (url, opts) => {
+      calls.push({ url, opts });
+      if (url.includes('api.github.com')) return okJson([commit('feat: x')]);
+      if (url.includes('api.groq.com')) throw new Error('network down');
+      return okJson({ ok: true });
+    });
+    await main();
+    expect(calls).toHaveLength(3);
+    const body = JSON.parse(calls[2].opts.body);
+    expect(body.text).toBe(FALLBACK_TEXT);
+  });
+
+  it('falls back to the plain commit list when Groq returns empty content', async () => {
+    const calls = [];
+    const { main } = loadScript(AI_ENV, async (url, opts) => {
+      calls.push({ url, opts });
+      if (url.includes('api.github.com')) return okJson([commit('feat: x')]);
+      if (url.includes('api.groq.com')) {
+        return okJson({ choices: [{ message: { content: '   ' } }] });
+      }
+      return okJson({ ok: true });
+    });
+    await main();
+    expect(calls).toHaveLength(3);
+    const body = JSON.parse(calls[2].opts.body);
+    expect(body.text).toBe(FALLBACK_TEXT);
+  });
+
+  it('does not call Groq when simulate_ai_failure is set', async () => {
+    const calls = [];
+    const env = { ...AI_ENV, INPUT_SIMULATE_AI_FAILURE: 'true' };
+    const { main } = loadScript(env, async (url, opts) => {
+      calls.push({ url, opts });
+      if (url.includes('api.github.com')) return okJson([commit('feat: x')]);
+      return okJson({ ok: true });
+    });
+    await main();
+    expect(calls).toHaveLength(2);
+    expect(calls.every((c) => !c.url.includes('api.groq.com'))).toBe(true);
+    const body = JSON.parse(calls[1].opts.body);
+    expect(body.text).toBe(FALLBACK_TEXT);
+  });
+
+  it('keeps the [ТЕСТ] prefix on the AI draft in test mode', async () => {
+    const calls = [];
+    const env = { ...AI_ENV, INPUT_TEST: 'true' };
+    const { main } = loadScript(env, async (url, opts) => {
+      calls.push({ url, opts });
+      if (url.includes('api.github.com')) return okJson([commit('feat: x')]);
+      if (url.includes('api.groq.com')) return okJson(GROQ_OK_BODY);
+      return okJson({ ok: true });
+    });
+    await main();
+    const body = JSON.parse(calls[2].opts.body);
+    expect(body.text.startsWith('[ТЕСТ] Что нового за')).toBe(true);
+  });
+
+  it('never leaks the Groq key into the Telegram body or console output', async () => {
+    const calls = [];
+    const { main, logs, errors } = loadScriptCapturingConsole(AI_ENV, async (url, opts) => {
+      calls.push({ url, opts });
+      if (url.includes('api.github.com')) return okJson([commit('feat: x')]);
+      if (url.includes('api.groq.com')) {
+        return { ok: false, status: 500, statusText: 'Internal Server Error', json: async () => ({}) };
+      }
+      return okJson({ ok: true });
+    });
+    await main();
+    const telegramBody = calls.find((c) => c.url.includes('api.telegram.org')).opts.body;
+    expect(telegramBody).not.toContain(GROQ_KEY);
+    for (const line of [...logs, ...errors]) {
+      expect(line).not.toContain(GROQ_KEY);
+    }
+  });
+});

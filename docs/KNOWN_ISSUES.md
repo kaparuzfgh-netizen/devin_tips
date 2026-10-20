@@ -74,6 +74,10 @@ ESLint правило `no-undef` было отключено в `.eslintrc.json`
 (БД бота) — противоречит правилу «секреты только в GitHub Secrets».
 Также `setOpenaiApiKey` при пустой таблице вставляет строку с `channelId: 1` (B2).
 
+Дополнение (T5): дневной черновик идёт через `scripts/daily-changelog.js` и секрет
+`GROQ_API_KEY` из GitHub Secrets — этот путь KI-003 не затрагивает. Старый
+`lib/openai.js` остаётся как есть: ключ в БД бота не исправлен.
+
 ## KI-005: Миграция на sendRichMessage (VERIFIED/LIVE 19.10)
 
 **Статус:** VERIFIED — тесты зелёные, живая проверка владельцем 19.10 (скриншоты `/start`, `/help`, `/status`,
@@ -143,7 +147,8 @@ Markdown заменён на `parse_mode: HTML` во всём `tgcloud/` (KI-005
   (личку админа) как `channelId` — настройки пишутся на мусорную строку.
 - **B8** `channel_post.js`, `message_reaction_count.js`, `my_chat_member.js` — нет общего
   `try/catch` и входного `console.log`, требование правила платформы (`docs/tgcloud-rules.md`).
-- **B9** `INPUT_SIMULATE_AI_FAILURE` в `scripts/daily-changelog.js` читается, но не используется.
+- **B9** FIXED: `INPUT_SIMULATE_AI_FAILURE` в `scripts/daily-changelog.js` теперь пропускает
+  Groq-вызов (T5) — черновик собирается запасным списком коммитов.
 - **B10** Незакоммиченные правки в рабочей копии (`callback_query.js`, `message.js`)
   на момент аудита — решить: закоммитить или откатить.
 - **B11** `checkReactionTriggers` игнорирует `trigger.postId`: реакция на любой пост

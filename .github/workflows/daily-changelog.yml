@@ -46,6 +46,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           ADMIN_CHAT_ID: ${{ vars.ADMIN_CHAT_ID }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           INPUT_DATE: ${{ inputs.date }}
           INPUT_TEST: ${{ inputs.test }}
           INPUT_SIMULATE_AI_FAILURE: ${{ inputs.simulate_ai_failure }}
