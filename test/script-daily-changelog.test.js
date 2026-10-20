@@ -205,9 +205,8 @@ describe('daily-changelog.js main flow', () => {
     expect(exitCode).toBe(1);
   });
 
-  // NOTE (audit B9): INPUT_SIMULATE_AI_FAILURE is read but never used — the
-  // workflow input is dead. This test pins that today's behaviour is identical
-  // with and without the flag; flip to a real simulation test when wired up.
+  // NOTE (B9, fixed with T5): INPUT_SIMULATE_AI_FAILURE now skips the Groq call.
+  // Without GROQ_API_KEY the behaviour is identical with and without the flag.
   it('labels the draft text and buttons with the window target date', async () => {
     const bodies = [];
     const urls = [];
