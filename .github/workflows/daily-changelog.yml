@@ -24,6 +24,11 @@ on:
         description: 'Песочница промпта: первые строки коммитов через || (ответ ИИ придёт админу, без кнопок)'
         required: false
         type: string
+      prompt_repeat:
+        description: 'Песочница: сколько раз спросить модель (1-5)'
+        required: false
+        type: string
+        default: '1'
 
 permissions:
   contents: read
@@ -55,5 +60,6 @@ jobs:
           INPUT_TEST: ${{ inputs.test }}
           INPUT_SIMULATE_AI_FAILURE: ${{ inputs.simulate_ai_failure }}
           INPUT_PROMPT_TEXT: ${{ inputs.prompt_text }}
+          INPUT_PROMPT_REPEAT: ${{ inputs.prompt_repeat }}
         run: |
           node scripts/daily-changelog.js

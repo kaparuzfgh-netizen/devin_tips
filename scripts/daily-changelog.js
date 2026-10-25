@@ -20,6 +20,11 @@ const INPUT_SIMULATE_AI_FAILURE = process.env.INPUT_SIMULATE_AI_FAILURE === 'tru
 // Optional: prompt sandbox — commit first lines joined by '||'; skips GitHub
 // and buttons, sends the model input/output to the admin as a plain message.
 const INPUT_PROMPT_TEXT = process.env.INPUT_PROMPT_TEXT;
+// Optional: prompt sandbox — how many times to ask the model (clamped 1-5).
+const repeatInput = parseInt(process.env.INPUT_PROMPT_REPEAT, 10);
+const INPUT_PROMPT_REPEAT = Number.isNaN(repeatInput) || repeatInput < 1
+  ? 1
+  : Math.min(repeatInput, 5);
 
 if (!GITHUB_REPOSITORY || !GITHUB_TOKEN || !TELEGRAM_BOT_TOKEN || !ADMIN_CHAT_ID) {
   console.error('Missing required environment variables');
@@ -224,7 +229,8 @@ async function generateAiBody(commits, date) {
       },
       body: JSON.stringify({
         model: 'openai/gpt-oss-120b',
-        max_tokens: 600,
+        max_tokens: 2000,
+        reasoning_effort: 'low',
         messages: [
           {
             role: 'system',
@@ -245,12 +251,12 @@ async function generateAiBody(commits, date) {
     }
 
     const data = await response.json();
-    const content = data && data.choices && data.choices[0] && data.choices[0].message
-      ? data.choices[0].message.content
-      : '';
+    const choice = data && data.choices && data.choices[0] ? data.choices[0] : {};
+    const content = choice.message ? choice.message.content : '';
     const text = typeof content === 'string' ? content.trim() : '';
     if (!text) {
       console.error('Groq returned empty content');
+      console.error(`finish_reason=${choice.finish_reason} completion_tokens=${data && data.usage ? data.usage.completion_tokens : undefined}`);
       return null;
     }
 
@@ -269,7 +275,7 @@ async function generateAiBody(commits, date) {
       answers.set(n, m[2]);
     }
     if (badNumber || answers.size !== lines.length) {
-      console.error('Groq answer does not match the numbered list');
+      console.error(`Groq answer does not match the numbered list: got=${answers.size} expected=${lines.length}`);
       return null;
     }
 
@@ -349,10 +355,22 @@ async function runPromptSandbox() {
   const commits = lines.map(message => ({ commit: { message } }));
 
   const input = buildAiLines(commits);
-  const aiBody = await generateAiBody(commits, 'sandbox');
-  const answer = aiBody || 'ИИ не ответил (ключ не задан, сбой или пустой ответ)';
+  const NO_ANSWER = 'ИИ не ответил (ключ не задан, сбой или пустой ответ)';
 
-  const text = `Песочница промпта\n\nВход модели:\n${input.join('\n')}\n\nОтвет модели:\n${answer}`;
+  const answers = [];
+  for (let i = 0; i < INPUT_PROMPT_REPEAT; i++) {
+    const aiBody = await generateAiBody(commits, 'sandbox');
+    answers.push(aiBody || NO_ANSWER);
+  }
+
+  let text = `Песочница промпта\n\nВход модели:\n${input.join('\n')}\n\n`;
+  if (INPUT_PROMPT_REPEAT === 1) {
+    text += `Ответ модели:\n${answers[0]}`;
+  } else {
+    text += answers
+      .map((answer, i) => `Ответ модели (${i + 1}/${INPUT_PROMPT_REPEAT}):\n${answer}`)
+      .join('\n\n');
+  }
   await sendTelegramMessage(text.slice(0, 3500));
 }
 

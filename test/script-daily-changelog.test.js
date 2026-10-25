@@ -554,3 +554,84 @@ describe('daily-changelog.js AI draft markers and ordering', () => {
     expect(body.text).toBe('Что нового за 2026-10-19\n\n— feat: x');
   });
 });
+
+describe('daily-changelog.js Groq request parameters and diagnostics', () => {
+  const GROQ_KEY = 'groq-secret-for-test';
+  const AI_ENV = { ...ENV, GROQ_API_KEY: GROQ_KEY, INPUT_DATE: '2026-10-19' };
+
+  it('sends reasoning_effort low and max_tokens 2000', async () => {
+    const calls = [];
+    const { generateAiBody } = loadScript(AI_ENV, async (url, opts) => {
+      calls.push({ url, opts });
+      return okJson({ choices: [{ message: { content: '1. Добавили X' } }] });
+    });
+    await generateAiBody([commit('feat: x')], '2026-10-19');
+    const body = JSON.parse(calls[0].opts.body);
+    expect(body.reasoning_effort).toBe('low');
+    expect(body.max_tokens).toBe(2000);
+  });
+
+  it('logs finish_reason and completion_tokens on empty content, without the key', async () => {
+    const { generateAiBody, logs, errors } = loadScriptCapturingConsole(AI_ENV, async () =>
+      okJson({
+        choices: [{ message: { content: '' }, finish_reason: 'length' }],
+        usage: { completion_tokens: 600 },
+      }));
+    const result = await generateAiBody([commit('feat: x')], '2026-10-19');
+    expect(result).toBeNull();
+    const all = [...logs, ...errors].join('\n');
+    expect(all).toContain('finish_reason=length');
+    expect(all).toContain('completion_tokens=600');
+    for (const line of [...logs, ...errors]) {
+      expect(line).not.toContain(GROQ_KEY);
+    }
+  });
+});
+
+describe('daily-changelog.js prompt sandbox repeat (INPUT_PROMPT_REPEAT)', () => {
+  const GROQ_KEY = 'groq-secret-for-test';
+  const GROQ_OK_BODY = { choices: [{ message: { content: '1. Добавили X\n2. Починили B' } }] };
+  const sandboxEnv = (repeat) => ({
+    ...ENV,
+    GROQ_API_KEY: GROQ_KEY,
+    INPUT_PROMPT_TEXT: 'feat: A (T1)||fix: B',
+    INPUT_PROMPT_REPEAT: repeat,
+  });
+  const sandboxFetch = (calls) => async (url, opts) => {
+    calls.push({ url, opts });
+    if (url.includes('api.groq.com')) return okJson(GROQ_OK_BODY);
+    return okJson({ ok: true });
+  };
+
+  it('asks the model 3 times and shows numbered answer blocks', async () => {
+    const calls = [];
+    const { main } = loadScript(sandboxEnv('3'), sandboxFetch(calls));
+    await main();
+    expect(calls.filter((c) => c.url.includes('api.github.com'))).toHaveLength(0);
+    expect(calls.filter((c) => c.url.includes('api.groq.com'))).toHaveLength(3);
+    const telegram = calls.filter((c) => c.url.includes('api.telegram.org'));
+    expect(telegram).toHaveLength(1);
+    const body = JSON.parse(telegram[0].opts.body);
+    expect(body.reply_markup).toBeUndefined();
+    expect(body.text).toContain('Ответ модели (1/3):');
+    expect(body.text).toContain('Ответ модели (2/3):');
+    expect(body.text).toContain('Ответ модели (3/3):');
+  });
+
+  it('clamps repeat to 5 for 99', async () => {
+    const calls = [];
+    const { main } = loadScript(sandboxEnv('99'), sandboxFetch(calls));
+    await main();
+    expect(calls.filter((c) => c.url.includes('api.groq.com'))).toHaveLength(5);
+  });
+
+  it('treats non-numeric repeat as 1 and keeps the plain format', async () => {
+    const calls = [];
+    const { main } = loadScript(sandboxEnv('abc'), sandboxFetch(calls));
+    await main();
+    expect(calls.filter((c) => c.url.includes('api.groq.com'))).toHaveLength(1);
+    const body = JSON.parse(calls.find((c) => c.url.includes('api.telegram.org')).opts.body);
+    expect(body.text).toContain('Ответ модели:');
+    expect(body.text).not.toContain('Ответ модели (');
+  });
+});
