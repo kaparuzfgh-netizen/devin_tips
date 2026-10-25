@@ -48,6 +48,14 @@ describe('handlers/message.js basics', () => {
     expect(p.text).toContain('user');
   });
 
+  it('/status reports the version and the current release names', async () => {
+    __pushDb(plainUser);
+    await handler(msg('/status'), {});
+    const p = lastSend();
+    expect(p.text).toContain('Версия: kit1');
+    expect(p.text).toContain('Выпуск сейчас:');
+  });
+
   it('replies with the forwarded chat id', async () => {
     __pushDb(plainUser);
     await handler(msg(undefined, { forward_from_chat: { id: -100111, title: 'Ch' } }), {});

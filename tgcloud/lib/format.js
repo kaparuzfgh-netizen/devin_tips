@@ -1,6 +1,9 @@
 // HTML fixtures for Telegram messages (parse_mode 'HTML').
 // Pure module — must NOT import 'sdk': stays unit-testable and reusable.
 
+import { releaseNames } from './codename.js';
+import { VERSION } from './version.js';
+
 export class Html extends String {}
 
 export function esc(text) {
@@ -62,7 +65,16 @@ export const CHANNEL = '@devin_tips';
 export const FOOTER_TEXT = '🐱 ВайбКот · @devin_tips';
 export const DEFAULT_TAGS = ['changelog', 'devin'];
 
-export const footer = () => html`<i>${FOOTER_TEXT}</i>`;
+export function footer(date) {
+  const parsed = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)
+    ? new Date(`${date}T00:00:00Z`)
+    : null;
+  const valid = parsed && !Number.isNaN(parsed.getTime())
+    && parsed.toISOString().slice(0, 10) === date;
+  if (!valid) return html`<i>${FOOTER_TEXT}</i>`;
+  const { day, week, month } = releaseNames(date);
+  return html`<i>${FOOTER_TEXT}</i>\n<i>🐾 выпуск ${day} · неделя ${week} · месяц ${month} · ${VERSION}</i>`;
+}
 
 export function tag(name) {
   return '#' + String(name).replace(/[^\p{L}\p{N}_]/gu, '_');
@@ -100,7 +112,7 @@ export function changelogPost({ date, groups }) {
     out += `${g.emoji} <b>${esc(category.charAt(0).toUpperCase() + category.slice(1))}</b>\n`;
     out += String(list(g.items)) + '\n\n';
   }
-  out += String(footer()) + '\n\n';
+  out += String(footer(date)) + '\n\n';
   out += String(tags(...DEFAULT_TAGS, ...groups.map((g) => g.category)));
   return new Html(out);
 }
@@ -118,7 +130,7 @@ export function draftPost(draftText, fallbackDate) {
     head = header('📝', fallbackDate ? 'Что нового · ' + fallbackDate : 'Что нового');
     body = text;
   }
-  return new Html(`${head}\n\n${esc(body)}\n\n${footer()}\n\n${tags(...DEFAULT_TAGS)}`);
+  return new Html(`${head}\n\n${esc(body)}\n\n${footer(m ? m[2] : fallbackDate)}\n\n${tags(...DEFAULT_TAGS)}`);
 }
 
 // Visible text without tags/entities — used for the plain-text fallback.

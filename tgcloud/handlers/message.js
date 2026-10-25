@@ -17,6 +17,8 @@ import {
   ok, fail, empty, unknown, info,
   formatId, formatCode,
 } from '../lib/format.js';
+import { releaseNames, currentLabelDate } from '../lib/codename.js';
+import { VERSION } from '../lib/version.js';
 import { channelSettings, dailyPosts } from '../schema.js';
 
 const commandLines = (scope) =>
@@ -293,9 +295,10 @@ ${footer()}`,
     case '/status':
       try {
         const me = await api.getMe();
+        const { day, week, month } = releaseNames(currentLabelDate(new Date()));
         await sendRichMessage(
           chatId,
-          ok(html`Бот работает!\n\n🤖 Бот: @${me.username}\n👤 Твой ID: ${formatId(user.telegramId)}\n👤 Твоя роль: ${user.role}`),
+          ok(html`Бот работает!\n\n🤖 Бот: @${me.username}\n👤 Твой ID: ${formatId(user.telegramId)}\n👤 Твоя роль: ${user.role}\n🐱 Версия: ${VERSION}\n🐾 Выпуск сейчас: ${day} · неделя ${week} · месяц ${month}`),
         );
       } catch (e) {
         await sendRichMessage(chatId, fail('Ошибка проверки статуса'));
