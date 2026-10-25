@@ -60,7 +60,7 @@ update message_reaction_count → handlers/message_reaction_count.js → lib/cha
 | `lib/content.js` | CRUD постов и сниппетов кода | — (KI-004/B3) | schema |
 | `lib/commands.js` | Реестр команд (listed/hidden), источник для /start, /help и текста BotFather; тест сверяет с `handlers/message.js` | — | — |
 | `lib/version.js` | Версия продукта `VERSION` (`kit1`: стадия kit/cat/tom + число, без точек) | — | — |
-| `lib/codename.js` | Кодовые имена выпуска по дате (день, неделя, месяц) из пула слов, `currentLabelDate` (чистый, без sdk) | — | — |
+| `lib/codename.js` | Кодовые имена выпуска по дате (день, неделя, месяц) из пула слов, `currentLabelDate` (чистый, без sdk). Сейчас не используется (решение владельца 25.10: слишком длинно), оставлен в запасе | — | — |
 | `lib/message.js` | sendRichMessage (parse_mode HTML, обычная строка экранируется, повтор plain при 400 parse entities), реэкспорт formatId/formatCode | Frozen (изменён по решению владельца, KI-005/KI-006) | api, format |
 | `lib/format.js` | Фикстуры оформления HTML: html-шаблон, header/list/footer/tags, ok/fail/empty, changelogPost/draftPost, stripHtml (чистый, без sdk) | — (KI-006) | — |
 | `lib/openai.js` | AI-summary через OpenAI-совместимый endpoint | — (KI-003) | schema, fetch |

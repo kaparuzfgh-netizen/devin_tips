@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import handler from '../tgcloud/handlers/callback_query.js';
+import { VERSION } from '../tgcloud/lib/version.js';
 import { apiCalls, __onApi, __resetApi, BotApiError } from './mocks/sdk.js';
 import { __pushDb, __resetDb, dbCalls } from './mocks/sdk-db.js';
 
@@ -85,7 +86,7 @@ describe('handlers/callback_query.js pub flow', () => {
     const t = apiCalls.find((c) => c.method === 'sendMessage').params.text;
     expect(t).toContain('📝 <b>Что нового · 2026-10-18</b>');
     expect(t).toContain('body with &lt;b&gt;markup');
-    expect(t).toContain('<i>🐱 ВайбКот · @devin_tips</i>');
+    expect(t).toContain(`<i>🐱 ВайбКот · @devin_tips · ${VERSION}</i>`);
     expect(t).toContain('#changelog #devin');
   });
 

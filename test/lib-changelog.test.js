@@ -13,6 +13,7 @@ import {
   autoPublishChangelog,
   generateDailySummary,
 } from '../tgcloud/lib/changelog.js';
+import { VERSION } from '../tgcloud/lib/version.js';
 import { generateChangelogSummary } from '../tgcloud/lib/openai.js';
 import { apiCalls, __resetApi } from './mocks/sdk.js';
 import { __pushDb, __resetDb, dbCalls } from './mocks/sdk-db.js';
@@ -94,7 +95,7 @@ describe('lib/changelog.js', () => {
     expect(t).toContain('📅 <b>2026-10-17</b>');
     expect(t).toContain('✨ <b>Feature</b>\n• A');
     expect(t).toContain('🐛 <b>Fix</b>\n• B');
-    expect(t).toContain('<i>🐱 ВайбКот · @devin_tips</i>');
+    expect(t).toContain(`<i>🐱 ВайбКот · @devin_tips · ${VERSION}</i>`);
     expect(t).toContain('#changelog #devin #feature #fix');
   });
 

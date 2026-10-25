@@ -32,7 +32,6 @@ import {
   FOOTER_TEXT,
   DEFAULT_TAGS,
 } from '../tgcloud/lib/format.js';
-import { releaseNames } from '../tgcloud/lib/codename.js';
 import { VERSION } from '../tgcloud/lib/version.js';
 import { validateHtml } from './mocks/sdk.js';
 
@@ -111,10 +110,10 @@ describe('lib/format.js layout fixtures', () => {
   });
 
   it('footer renders the brand line in italics', () => {
-    expect(String(footer())).toBe('<i>🐱 ВайбКот · @devin_tips</i>');
+    expect(String(footer())).toBe(`<i>🐱 ВайбКот · @devin_tips · ${VERSION}</i>`);
     expect(BRAND).toBe('ВайбКот');
     expect(CHANNEL).toBe('@devin_tips');
-    expect(FOOTER_TEXT).toBe('🐱 ВайбКот · @devin_tips');
+    expect(FOOTER_TEXT).toBe(`🐱 ВайбКот · @devin_tips · ${VERSION}`);
     expect(DEFAULT_TAGS).toEqual(['changelog', 'devin']);
   });
 
@@ -170,7 +169,7 @@ describe('lib/format.js changelogPost', () => {
     expect(s).toContain('📝 <b>Что нового · 2026-10-18</b>');
     expect(s).toContain('✨ <b>Feature</b>\n• added a&lt;b\n• other');
     expect(s).toContain('🐛 <b>Fix</b>\n• fixed x');
-    expect(s).toContain('<i>🐱 ВайбКот · @devin_tips</i>');
+    expect(s).toContain(`<i>🐱 ВайбКот · @devin_tips · ${VERSION}</i>`);
     expect(s).toContain('#changelog #devin #feature #fix');
     expect(validateHtml(s)).toBe(true);
   });
@@ -181,7 +180,7 @@ describe('lib/format.js draftPost', () => {
     const s = String(draftPost('Что нового за 2026-10-18\n\nbody <b>text', 'ignored'));
     expect(s).toContain('📝 <b>Что нового · 2026-10-18</b>');
     expect(s).toContain('body &lt;b&gt;text');
-    expect(s).toContain('<i>🐱 ВайбКот · @devin_tips</i>');
+    expect(s).toContain(`<i>🐱 ВайбКот · @devin_tips · ${VERSION}</i>`);
     expect(s).toContain('#changelog #devin');
     expect(validateHtml(s)).toBe(true);
   });
@@ -204,54 +203,29 @@ describe('lib/format.js draftPost', () => {
   });
 });
 
-describe('lib/format.js footer with release names', () => {
-  const PLAIN_FOOTER = '<i>🐱 ВайбКот · @devin_tips</i>';
-
-  it('footer() without a date renders the unchanged brand line', () => {
-    expect(String(footer())).toBe(PLAIN_FOOTER);
-  });
-
-  it.each(['not-a-date', '', '2026-13-99', undefined])(
-    'footer(%s) falls back to the brand line',
-    (date) => {
-      expect(String(footer(date))).toBe(PLAIN_FOOTER);
-    },
-  );
-
-  it('footer(date) appends day/week/month names and VERSION', () => {
-    const { day, week, month } = releaseNames('2026-10-20');
-    const s = String(footer('2026-10-20'));
-    expect(s).toContain('ВайбКот');
-    expect(s).toContain(`выпуск ${day}`);
-    expect(s).toContain(`неделя ${week}`);
-    expect(s).toContain(`месяц ${month}`);
+describe('lib/format.js footer with version', () => {
+  it('footer() renders the brand line with VERSION', () => {
+    const s = String(footer());
+    expect(s).toBe(`<i>🐱 ВайбКот · @devin_tips · ${VERSION}</i>`);
     expect(s).toContain(VERSION);
     expect(validateHtml(s)).toBe(true);
   });
 
-  it('changelogPost uses the dated footer', () => {
-    const post = changelogPost({
+  it('changelogPost footer carries VERSION', () => {
+    const s = String(changelogPost({
       date: '2026-10-20',
       groups: [{ category: 'feature', emoji: '✨', items: ['added x'] }],
-    });
-    const s = String(post);
-    const { day } = releaseNames('2026-10-20');
-    expect(s).toContain(`выпуск ${day}`);
+    }));
+    expect(s).toContain(`<i>🐱 ВайбКот · @devin_tips · ${VERSION}</i>`);
     expect(validateHtml(s)).toBe(true);
   });
 
-  it('draftPost with a dated header carries the release names', () => {
-    const s = String(draftPost('Что нового за 2026-10-20\n\nbody', 'ignored'));
-    const { day, week, month } = releaseNames('2026-10-20');
-    expect(s).toContain(`выпуск ${day}`);
-    expect(s).toContain(`неделя ${week}`);
-    expect(s).toContain(`месяц ${month}`);
-  });
-
-  it('draftPost without a date keeps the plain footer', () => {
-    const s = String(draftPost('freeform', undefined));
-    expect(s).toContain(PLAIN_FOOTER);
-    expect(s).not.toContain('выпуск');
+  it('draftPost footer carries VERSION with and without a dated header', () => {
+    const dated = String(draftPost('Что нового за 2026-10-20\n\nbody', 'ignored'));
+    const undated = String(draftPost('freeform', undefined));
+    expect(dated).toContain(`<i>🐱 ВайбКот · @devin_tips · ${VERSION}</i>`);
+    expect(undated).toContain(`<i>🐱 ВайбКот · @devin_tips · ${VERSION}</i>`);
+    expect(validateHtml(dated)).toBe(true);
   });
 });
 

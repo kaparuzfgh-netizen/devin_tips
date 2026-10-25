@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import handler from '../tgcloud/handlers/message.js';
+import { VERSION } from '../tgcloud/lib/version.js';
 import { apiCalls, __onApi, __resetApi } from './mocks/sdk.js';
 import { __pushDb, __resetDb, dbCalls } from './mocks/sdk-db.js';
 
@@ -48,12 +49,11 @@ describe('handlers/message.js basics', () => {
     expect(p.text).toContain('user');
   });
 
-  it('/status reports the version and the current release names', async () => {
+  it('/status reports the version', async () => {
     __pushDb(plainUser);
     await handler(msg('/status'), {});
     const p = lastSend();
-    expect(p.text).toContain('Версия: kit1');
-    expect(p.text).toContain('Выпуск сейчас:');
+    expect(p.text).toContain(`Версия: ${VERSION}`);
   });
 
   it('replies with the forwarded chat id', async () => {
@@ -89,7 +89,7 @@ describe('handlers/message.js basics', () => {
   it('/start ends with the brand footer', async () => {
     __pushDb(plainUser);
     await handler(msg('/start'), {});
-    expect(lastSend().text).toContain('<i>🐱 ВайбКот · @devin_tips</i>');
+    expect(lastSend().text).toContain(`<i>🐱 ВайбКот · @devin_tips · ${VERSION}</i>`);
   });
 
   it('/start includes the admin command block for admins', async () => {
