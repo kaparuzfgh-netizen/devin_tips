@@ -20,6 +20,10 @@ on:
         required: false
         type: boolean
         default: false
+      prompt_text:
+        description: 'Песочница промпта: первые строки коммитов через || (ответ ИИ придёт админу, без кнопок)'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -50,5 +54,6 @@ jobs:
           INPUT_DATE: ${{ inputs.date }}
           INPUT_TEST: ${{ inputs.test }}
           INPUT_SIMULATE_AI_FAILURE: ${{ inputs.simulate_ai_failure }}
+          INPUT_PROMPT_TEXT: ${{ inputs.prompt_text }}
         run: |
           node scripts/daily-changelog.js

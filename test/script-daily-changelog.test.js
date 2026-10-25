@@ -18,7 +18,7 @@ function loadScript(env = {}, fetchImpl, exitImpl) {
   const factory = new Function(
     'process', 'fetch', 'console',
     `${SRC.replace(/main\(\);\s*$/, '')}
-     return { getDateWindow, filterCommits, generateChangelog, sendTelegramDraft, main };`,
+     return { getDateWindow, filterCommits, parseCommit, buildAiLines, generateChangelog, generateAiBody, sendTelegramDraft, sendTelegramMessage, main };`,
   );
   return factory(proc, fetchImpl, cons);
 }
@@ -253,7 +253,7 @@ function loadScriptCapturingConsole(env, fetchImpl) {
   const factory = new Function(
     'process', 'fetch', 'console',
     `${SRC.replace(/main\(\);\s*$/, '')}
-     return { getDateWindow, filterCommits, generateChangelog, sendTelegramDraft, main };`,
+     return { getDateWindow, filterCommits, parseCommit, buildAiLines, generateChangelog, generateAiBody, sendTelegramDraft, sendTelegramMessage, main };`,
   );
   return { ...factory(proc, fetchImpl, cons), logs, errors };
 }
@@ -363,6 +363,132 @@ describe('daily-changelog.js Groq AI draft (T5)', () => {
     const { main, logs, errors } = loadScriptCapturingConsole(AI_ENV, async (url, opts) => {
       calls.push({ url, opts });
       if (url.includes('api.github.com')) return okJson([commit('feat: x')]);
+      if (url.includes('api.groq.com')) {
+        return { ok: false, status: 500, statusText: 'Internal Server Error', json: async () => ({}) };
+      }
+      return okJson({ ok: true });
+    });
+    await main();
+    const telegramBody = calls.find((c) => c.url.includes('api.telegram.org')).opts.body;
+    expect(telegramBody).not.toContain(GROQ_KEY);
+    for (const line of [...logs, ...errors]) {
+      expect(line).not.toContain(GROQ_KEY);
+    }
+  });
+});
+
+describe('daily-changelog.js parseCommit (KI-008)', () => {
+  const { parseCommit } = loadScript(ENV);
+
+  it.each([
+    ['feat: добавили кнопку', 'Новое'],
+    ['fix: починили кнопку', 'Исправлено'],
+    ['docs: поправили readme', 'Прочее'],
+    ['просто строка без типа', 'Прочее'],
+  ])('maps %s to kind %s', (message, kind) => {
+    expect(parseCommit(message).kind).toBe(kind);
+  });
+
+  it('keeps the whole first line as text when there is no type', () => {
+    expect(parseCommit('просто строка без типа').text).toBe('просто строка без типа');
+  });
+
+  it.each([
+    ['fix: escape (static) chars (KI-005)', 'escape (static) chars'],
+    ['feat: перенос на новую схему changelog (Z1-Z3)', 'перенос на новую схему changelog'],
+    ['feat: X (T5 + D5)', 'X'],
+    ['fix: Y (B14, KI-004)', 'Y'],
+  ])('strips trailing task ids from %s', (message, text) => {
+    expect(parseCommit(message).text).toBe(text);
+  });
+
+  it('does not strip a trailing parenthesis without digits', () => {
+    expect(parseCommit('fix: escape chars (static)').text).toBe('escape chars (static)');
+  });
+
+  it('lets a Changelog: trailer override the first line and still strips ids', () => {
+    const parsed = parseCommit('feat: X (T5)\n\nChangelog: добавлена кнопка (T9)');
+    expect(parsed.kind).toBe('Новое');
+    expect(parsed.text).toBe('добавлена кнопка');
+  });
+
+  it('drops the scope from the description: feat(web): x', () => {
+    const parsed = parseCommit('feat(web): x');
+    expect(parsed.kind).toBe('Новое');
+    expect(parsed.text).toBe('x');
+  });
+});
+
+describe('daily-changelog.js Groq request body (KI-008)', () => {
+  const GROQ_KEY = 'groq-secret-for-test';
+  const AI_ENV = { ...ENV, GROQ_API_KEY: GROQ_KEY, INPUT_DATE: '2026-10-19' };
+
+  it('sends parsed [kind] text to Groq, not the raw first line', async () => {
+    const calls = [];
+    const { generateAiBody } = loadScript(AI_ENV, async (url, opts) => {
+      calls.push({ url, opts });
+      return okJson({ choices: [{ message: { content: '— Добавили X' } }] });
+    });
+    await generateAiBody([commit('feat: Groq-текст черновика с запасным списком (T5)')], '2026-10-19');
+    expect(calls).toHaveLength(1);
+    const body = JSON.parse(calls[0].opts.body);
+    expect(body.messages[1].content).toContain('[Новое] Groq-текст черновика с запасным списком');
+    expect(body.messages[1].content).not.toContain('T5');
+    expect(body.messages[1].content).not.toContain('feat:');
+    expect(body.messages[0].content).toContain('Не придумывай названия моделей');
+  });
+});
+
+describe('daily-changelog.js prompt sandbox (INPUT_PROMPT_TEXT)', () => {
+  const GROQ_KEY = 'groq-secret-for-test';
+  const SANDBOX_ENV = {
+    ...ENV,
+    GROQ_API_KEY: GROQ_KEY,
+    INPUT_PROMPT_TEXT: 'feat: A (T1)||fix: B',
+  };
+  const GROQ_OK_BODY = { choices: [{ message: { content: '— Добавили X' } }] };
+
+  it('skips GitHub, calls Groq once, sends one plain message', async () => {
+    const calls = [];
+    const { main } = loadScript(SANDBOX_ENV, async (url, opts) => {
+      calls.push({ url, opts });
+      if (url.includes('api.groq.com')) return okJson(GROQ_OK_BODY);
+      return okJson({ ok: true });
+    });
+    await main();
+    expect(calls.filter((c) => c.url.includes('api.github.com'))).toHaveLength(0);
+    expect(calls.filter((c) => c.url.includes('api.groq.com'))).toHaveLength(1);
+    const telegram = calls.filter((c) => c.url.includes('api.telegram.org'));
+    expect(telegram).toHaveLength(1);
+    expect(telegram[0].url).toContain('sendMessage');
+    const body = JSON.parse(telegram[0].opts.body);
+    expect(body.reply_markup).toBeUndefined();
+    expect(body.text).toContain('Песочница промпта');
+    expect(body.text).toContain('[Новое] A');
+    expect(body.text).toContain('[Исправлено] B');
+    expect(body.text).toContain('— Добавили X');
+  });
+
+  it('reports that the AI did not answer when Groq returns !ok', async () => {
+    const calls = [];
+    const { main } = loadScript(SANDBOX_ENV, async (url, opts) => {
+      calls.push({ url, opts });
+      if (url.includes('api.groq.com')) {
+        return { ok: false, status: 500, statusText: 'Internal Server Error', json: async () => ({}) };
+      }
+      return okJson({ ok: true });
+    });
+    await main();
+    const telegram = calls.filter((c) => c.url.includes('api.telegram.org'));
+    expect(telegram).toHaveLength(1);
+    const body = JSON.parse(telegram[0].opts.body);
+    expect(body.text).toContain('ИИ не ответил');
+  });
+
+  it('never leaks the Groq key into the Telegram body or console output', async () => {
+    const calls = [];
+    const { main, logs, errors } = loadScriptCapturingConsole(SANDBOX_ENV, async (url, opts) => {
+      calls.push({ url, opts });
       if (url.includes('api.groq.com')) {
         return { ok: false, status: 500, statusText: 'Internal Server Error', json: async () => ({}) };
       }
