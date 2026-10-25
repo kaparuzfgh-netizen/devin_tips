@@ -261,7 +261,7 @@ function loadScriptCapturingConsole(env, fetchImpl) {
 describe('daily-changelog.js Groq AI draft (T5)', () => {
   const GROQ_KEY = 'groq-secret-for-test';
   const AI_ENV = { ...ENV, GROQ_API_KEY: GROQ_KEY, INPUT_DATE: '2026-10-19' };
-  const GROQ_OK_BODY = { choices: [{ message: { content: '— Добавили X' } }] };
+  const GROQ_OK_BODY = { choices: [{ message: { content: '1. Добавили X' } }] };
   const FALLBACK_TEXT = 'Что нового за 2026-10-19\n\n— feat: x';
 
   it('uses the Groq text when the API responds 200', async () => {
@@ -280,7 +280,7 @@ describe('daily-changelog.js Groq AI draft (T5)', () => {
     expect(calls[2].url).toContain('api.telegram.org');
     const body = JSON.parse(calls[2].opts.body);
     expect(body.text).toContain('Что нового за 2026-10-19');
-    expect(body.text).toContain('— Добавили X');
+    expect(body.text).toContain('✨ Добавили X');
   });
 
   it('falls back to the plain commit list when Groq returns !ok', async () => {
@@ -427,15 +427,15 @@ describe('daily-changelog.js Groq request body (KI-008)', () => {
     const calls = [];
     const { generateAiBody } = loadScript(AI_ENV, async (url, opts) => {
       calls.push({ url, opts });
-      return okJson({ choices: [{ message: { content: '— Добавили X' } }] });
+      return okJson({ choices: [{ message: { content: '1. Добавили X' } }] });
     });
     await generateAiBody([commit('feat: Groq-текст черновика с запасным списком (T5)')], '2026-10-19');
     expect(calls).toHaveLength(1);
     const body = JSON.parse(calls[0].opts.body);
-    expect(body.messages[1].content).toContain('[Новое] Groq-текст черновика с запасным списком');
+    expect(body.messages[1].content).toContain('1. [Новое] Groq-текст черновика с запасным списком');
     expect(body.messages[1].content).not.toContain('T5');
     expect(body.messages[1].content).not.toContain('feat:');
-    expect(body.messages[0].content).toContain('Не придумывай названия моделей');
+    expect(body.messages[0].content).toContain('не придумывай названия моделей');
   });
 });
 
@@ -446,7 +446,7 @@ describe('daily-changelog.js prompt sandbox (INPUT_PROMPT_TEXT)', () => {
     GROQ_API_KEY: GROQ_KEY,
     INPUT_PROMPT_TEXT: 'feat: A (T1)||fix: B',
   };
-  const GROQ_OK_BODY = { choices: [{ message: { content: '— Добавили X' } }] };
+  const GROQ_OK_BODY = { choices: [{ message: { content: '1. Добавили X\n2. Починили B' } }] };
 
   it('skips GitHub, calls Groq once, sends one plain message', async () => {
     const calls = [];
@@ -464,9 +464,10 @@ describe('daily-changelog.js prompt sandbox (INPUT_PROMPT_TEXT)', () => {
     const body = JSON.parse(telegram[0].opts.body);
     expect(body.reply_markup).toBeUndefined();
     expect(body.text).toContain('Песочница промпта');
-    expect(body.text).toContain('[Новое] A');
-    expect(body.text).toContain('[Исправлено] B');
-    expect(body.text).toContain('— Добавили X');
+    expect(body.text).toContain('1. [Новое] A');
+    expect(body.text).toContain('2. [Исправлено] B');
+    expect(body.text).toContain('✨ Добавили X');
+    expect(body.text).toContain('🛠 Починили B');
   });
 
   it('reports that the AI did not answer when Groq returns !ok', async () => {
@@ -500,5 +501,56 @@ describe('daily-changelog.js prompt sandbox (INPUT_PROMPT_TEXT)', () => {
     for (const line of [...logs, ...errors]) {
       expect(line).not.toContain(GROQ_KEY);
     }
+  });
+});
+
+describe('daily-changelog.js AI draft markers and ordering', () => {
+  const GROQ_KEY = 'groq-secret-for-test';
+  const AI_ENV = { ...ENV, GROQ_API_KEY: GROQ_KEY, INPUT_DATE: '2026-10-19' };
+  const aiOk = (content) => okJson({ choices: [{ message: { content } }] });
+
+  it('adds per-kind emoji and sorts Новое → Исправлено → Прочее', async () => {
+    const { generateAiBody } = loadScript(AI_ENV, async () =>
+      aiOk('1. текст фикса\n2. прочий текст\n3. новый текст'));
+    const result = await generateAiBody(
+      [commit('fix: f'), commit('refactor: r'), commit('feat: n')],
+      '2026-10-19',
+    );
+    expect(result).toBe('✨ новый текст\n🛠 текст фикса\n🔹 прочий текст');
+  });
+
+  it('leaves no dash markers or [kind] labels in the result', async () => {
+    const { generateAiBody } = loadScript(AI_ENV, async () =>
+      aiOk('1. текст фикса\n2. новый текст'));
+    const result = await generateAiBody([commit('fix: f'), commit('feat: n')], '2026-10-19');
+    expect(result).not.toContain('— ');
+    expect(result).not.toContain('[Новое]');
+    expect(result).not.toContain('[Исправлено]');
+    expect(result).not.toContain('[Прочее]');
+  });
+
+  it.each([
+    '1. текст',
+    '1. текст\n2. текст\n3. лишний',
+    'просто текст без нумерации',
+    '1. текст\n1. дубль\n2. текст',
+  ])('returns null when the answer list is malformed: %s', async (content) => {
+    const { generateAiBody } = loadScript(AI_ENV, async () => aiOk(content));
+    const result = await generateAiBody([commit('feat: a'), commit('fix: b')], '2026-10-19');
+    expect(result).toBeNull();
+  });
+
+  it('falls back to the plain commit list in main() when the answer is not numbered', async () => {
+    const calls = [];
+    const { main } = loadScript(AI_ENV, async (url, opts) => {
+      calls.push({ url, opts });
+      if (url.includes('api.github.com')) return okJson([commit('feat: x')]);
+      if (url.includes('api.groq.com')) return aiOk('— Добавили X без номера');
+      return okJson({ ok: true });
+    });
+    await main();
+    expect(calls).toHaveLength(3);
+    const body = JSON.parse(calls[2].opts.body);
+    expect(body.text).toBe('Что нового за 2026-10-19\n\n— feat: x');
   });
 });
